@@ -1,0 +1,16 @@
+{
+  "name": "site-video",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Turn any website URL into a laptop / laptop + phone showcase video (MP4).",
+  "scripts": {
+    "render": "node render.js",
+    "all": "./render-all.sh"
+  },
+  "dependencies": {
+    "playwright": "1.56.1"
+  },
+  "optionalDependencies": {
+    "ffmpeg-static": "^5.2.0"
+  }
+}

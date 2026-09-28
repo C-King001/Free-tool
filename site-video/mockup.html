@@ -1,0 +1,85 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Site video mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100vw;height:100vh;overflow:hidden}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:
+ radial-gradient(900px 600px at 15% 10%, #dfe8ff 0%, transparent 60%),
+ radial-gradient(800px 700px at 90% 90%, #f3e9dc 0%, transparent 60%),
+ linear-gradient(160deg,#f7f5f0,#eef1f7);}
+.blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.55}
+.b1{width:520px;height:520px;background:#2f6bff;left:-120px;top:520px;opacity:.18}
+.b2{width:460px;height:460px;background:#f0b37a;right:-80px;top:-120px;opacity:.22}
+.stage{position:absolute;inset:0;perspective:2600px;perspective-origin:50% 35%}
+.dev{position:absolute;left:0;top:0;transform-style:preserve-3d}
+.laptop{width:1520px;transform-style:preserve-3d;transform-origin:50% 90%}
+.phone{position:relative;width:422px;height:876px;border-radius:66px;padding:16px;background:#111317;
+ box-shadow:0 0 0 2px #3a3e45 inset,0 0 0 3px #a9aeb6,0 50px 80px -20px rgba(15,25,55,.45),0 20px 30px -10px rgba(15,25,55,.25)}
+.pscreen{position:relative;width:390px;height:844px;border-radius:50px;overflow:hidden;background:#fff}
+.pscreen iframe{position:absolute;left:0;top:50px;width:390px;height:794px;border:0}
+.sbar{position:absolute;left:0;right:0;top:0;height:50px;background:#fff;display:flex;justify-content:space-between;align-items:center;padding:4px 30px 0 44px;font:600 16px -apple-system,'Plus Jakarta Sans',sans-serif;color:#111}
+.sbar i{display:inline-block;background:#111;margin-left:5px;vertical-align:middle}
+.island{position:absolute;top:12px;left:50%;width:120px;height:34px;margin-left:-60px;background:#000;border-radius:20px;z-index:2}
+.btn{position:absolute;background:#9aa0a8;border-radius:3px;width:4px}
+.lid{position:relative;width:1336px;height:856px;margin:0 auto;background:#0d0f12;border-radius:26px 26px 6px 6px;
+ padding:26px 28px 30px;transform-origin:50% 100%;transform-style:preserve-3d;
+ box-shadow:0 0 0 2px #2b2e33 inset,0 0 0 1px #9aa0a8;}
+.lid:before{content:"";position:absolute;top:10px;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#1d2127;box-shadow:0 0 0 1px #2a2e35}
+.screen{position:relative;width:1280px;height:800px;overflow:hidden;background:#fff;border-radius:4px}
+.screen iframe{position:absolute;left:0;top:0;width:1440px;height:900px;border:0;transform:scale(.888889);transform-origin:0 0}
+.glare{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 38%);}
+.lidback{position:absolute;inset:0;border-radius:26px 26px 6px 6px;background:linear-gradient(180deg,#d6d9de,#b9bdc4);transform:rotateY(180deg) translateZ(1px);backface-visibility:hidden}
+.base{position:relative;width:1520px;height:30px;margin-top:-2px;background:linear-gradient(180deg,#e4e6ea 0%,#c9ccd2 45%,#9ea3ab 100%);
+ border-radius:3px 3px 26px 26px;box-shadow:0 1px 0 #f5f6f8 inset}
+.base:before{content:"";position:absolute;left:50%;top:0;width:220px;height:12px;margin-left:-110px;background:linear-gradient(180deg,#b8bcc3,#d3d6db);border-radius:0 0 14px 14px}
+.shadow{position:absolute;left:50%;top:858px;width:1560px;height:70px;margin-left:-780px;transform:translateZ(-2px);background:radial-gradient(closest-side,rgba(20,30,60,.35),transparent);filter:blur(8px)}
+.cap{position:absolute;left:0;right:0;top:985px;text-align:center;color:#12151c;opacity:0}
+.cap .url{font-size:40px;font-weight:800;letter-spacing:-.5px}
+.cap .url span{color:var(--accent,#1f5fff)}
+.tag{position:absolute;left:0;right:0;top:36px;text-align:center;font-size:20px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#1f5fff;opacity:0}
+</style></head><body>
+<div class="blob b1"></div><div class="blob b2"></div>
+<div class="stage">
+ <div class="dev" id="ldev"><div class="laptop" id="laptop"><div class="shadow" id="shadow"></div>
+  <div class="lid" id="lid"><div class="lidback"></div>
+   <div class="screen"><iframe id="site" name="site" src="about:blank"></iframe><div class="glare"></div></div>
+  </div>
+  <div class="base"></div>
+ </div></div>
+ <div class="dev" id="pdev"><div class="phone" id="phone">
+  <div class="btn" style="left:-4px;top:170px;height:60px"></div><div class="btn" style="left:-4px;top:250px;height:60px"></div><div class="btn" style="right:-4px;top:210px;height:100px"></div>
+  <div class="pscreen"><div class="island"></div><div class="sbar"><span>9:41</span><span><i style="width:17px;height:10px;clip-path:polygon(0 100%,25% 100%,25% 70%,0 70%,0 100%,35% 100%,35% 45%,60% 45%,60% 100%,70% 100%,70% 20%,95% 20%,95% 100%)"></i><i style="width:24px;height:11px;border-radius:3px;background:none;border:1.5px solid #111;position:relative"></i></span></div><iframe id="msite" name="msite" src="about:blank"></iframe><div class="glare"></div></div>
+ </div></div>
+</div>
+<div class="cap" id="cap"><div class="url"></div></div>
+<script>
+// Everything site-specific comes from the query string (render.js sets it):
+// ?layout=wide|tall|laptop &url=https://... &caption=example.com &accent=#1f5fff
+const Q=new URLSearchParams(location.search), LAY=Q.get('layout')||'wide';
+const cap0=Q.get('caption')||'', dot=cap0.lastIndexOf('.');
+const capEl=document.querySelector('.cap .url');
+if(dot>0){capEl.textContent=cap0.slice(0,dot);const sp=document.createElement('span');sp.textContent=cap0.slice(dot);capEl.appendChild(sp);} else capEl.textContent=cap0;
+if(Q.get('accent')) document.documentElement.style.setProperty('--accent',Q.get('accent'));
+document.getElementById('site').src=Q.get('url');
+if(LAY=='laptop') document.getElementById('pdev').remove(); else document.getElementById('msite').src=Q.get('url');
+// [centerX, centerY, scale] for laptop / phone, caption top
+const CFG={wide:{l:[860,520,.8],p:[1560,600,.74],cap:985},
+           tall:{l:[540,600,.665],p:[775,1335,.95],cap:1795},
+           laptop:{l:[960,515,.9],p:[0,0,1],cap:985}}[LAY];
+document.getElementById('cap').style.top=CFG.cap+'px';
+if(LAY=='tall'){document.querySelector('.cap .url').style.fontSize='64px';}
+const E=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2, C=(x,a,b)=>Math.min(1,Math.max(0,(x-a)/(b-a)));
+window.setT=(t,T)=>{
+ const L=document.getElementById('ldev'),P=document.getElementById('pdev'),cap=document.getElementById('cap');
+ const a=E(C(t,0,1.6)), b=E(C(t,.35,1.9)), out=E(C(t,T-2.6,T-1.2));
+ const drift=Math.sin(t*.45)*1.6*(1-out), bob=Math.sin(t*.9)*6*(1-out);
+ const [lx,ly,ls]=CFG.l,[px,py,ps]=CFG.p, k=1-.08*out, up=-45*out;
+ L.style.opacity=E(C(t,0,.7));
+ L.style.transform=`translate(${lx-760}px,${ly-443+160*(1-a)+up}px) scale(${ls*(.85+.15*a)*k}) rotateX(${22*(1-a)}deg) rotateY(${drift}deg)`;
+ L.style.transformOrigin='760px 443px';
+ if(P){ P.style.opacity=E(C(t,.35,1.0));
+ P.style.transform=`translate(${px-211}px,${py-438+260*(1-b)+up+bob}px) scale(${ps*(.9+.1*b)*k}) rotateZ(${4*(1-b)}deg) rotateY(${-drift*1.5}deg)`;
+ P.style.transformOrigin='211px 438px'; }
+ cap.style.opacity=out; cap.style.transform=`translateY(${-50*out + 20*(1-out)}px)`;
+};
+</script></body></html>
