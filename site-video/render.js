@@ -27,6 +27,7 @@ const SIZE = L => L === 'tall' ? [1080, 1920] : [1920, 1080];
 const FPS = +(args.fps || 60);
 const CAPTION = args.caption || host;
 const ACCENT = args.accent || '#1f5fff';
+const TINT = args.tint || '';                               // backdrop colours, e.g. "#7a2028,#b98d44" (site brand colours)
 const OUTDIR = args.outdir || 'output';
 const SLUG = (host.split('.')[0] + new URL(URL_).pathname.replace(/\/+$/, '').replace(/[^a-z0-9]+/gi, '-')).toLowerCase();
 const OUT = L => args.out && LAYOUTS.length === 1 ? args.out : path.join(OUTDIR, `${SLUG}_${L}.mp4`);
@@ -93,6 +94,21 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   });
   await Promise.all([desk, mob].filter(Boolean).map(pg => playableVideos(pg.context())));
 
+  // JavaScript animations (count-ups, typewriters, sliders) run on page time. Frames take longer to capture
+  // than they last on screen, so page time is slowed to video speed: performance.now, animation-frame
+  // timestamps and timers all follow a rate the renderer sets (1 = normal).
+  await Promise.all([desk, mob].filter(Boolean).map(pg => pg.addInitScript(() => {
+    const pn = performance.now.bind(performance), raf = window.requestAnimationFrame.bind(window);
+    const st = window.setTimeout.bind(window), si = window.setInterval.bind(window);
+    let rate = 1, rBase = pn(), vBase = rBase;
+    const vnow = () => vBase + (pn() - rBase) * rate;
+    performance.now = vnow;
+    window.requestAnimationFrame = cb => raf(() => cb(vnow()));
+    window.setTimeout = (fn, d, ...a) => st(fn, (+d || 0) / rate, ...a);
+    window.setInterval = (fn, d, ...a) => si(fn, (+d || 0) / rate, ...a);
+    window.__setTimeRate = r => { vBase = vnow(); rBase = pn(); rate = r; };
+  })));
+
   // Load, dismiss cookies, pre-scroll once to warm the image cache, then reload so scroll-reveal
   // animations are fresh and play on camera instead of having already fired.
   const dismissCookies = pg => pg.evaluate(() => {
@@ -127,7 +143,7 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   const sessions = [];
   for (const pg of [desk, mob].filter(Boolean)) { const s = await pg.context().newCDPSession(pg); await s.send('Animation.enable'); sessions.push(s); }
   let rate = 1;
-  const setRate = async r => { r = Math.max(.02, Math.min(1, r)); if (Math.abs(r - rate) / rate > .1) { rate = r; await Promise.all(sessions.map(s => s.send('Animation.setPlaybackRate', { playbackRate: r }))); } };
+  const setRate = async r => { r = Math.max(.02, Math.min(1, r)); if (Math.abs(r - rate) / rate > .1) { rate = r; await Promise.all([...sessions.map(s => s.send('Animation.setPlaybackRate', { playbackRate: r })), ...[desk, mob].filter(Boolean).map(pg => pg.evaluate(r => window.__setTimeRate && __setTimeRate(r), r))]); } };
 
   // Sync the phone to the laptop section by section (falls back to proportional if the pages differ).
   const sectionTops = pg => pg.evaluate(() => [...document.querySelectorAll('body section, body footer')]
@@ -161,6 +177,7 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     seg.push({ t0: t, t1: t + hold, y0: y, y1: y + (still ? 0 : d), ease: false, sweep, clicks }); t += hold; y += still ? 0 : d;
   });
   const T = t + 2.6;
+  console.log('pauses: ' + seg.filter(s => !s.ease).map(s => `${Math.round(s.y0)}@${s.t0.toFixed(1)}-${s.t1.toFixed(1)}s`).join('  '));
   console.log(`${host}${new URL(URL_).pathname} | ${LAYOUTS.join(', ')} | page height ${H}px | ${T.toFixed(1)}s`);
   const scrollAt = tt => { let v = 0; for (const s of seg) { if (tt >= s.t1) v = s.y1; else if (tt > s.t0) { { const k = (tt - s.t0) / (s.t1 - s.t0); v = s.y0 + (s.y1 - s.y0) * (s.ease ? E(k) : k); } break; } else break; } return v; };
 
@@ -169,7 +186,7 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   for (const L of LAYOUTS) {
     const [w, h] = SIZE(L);
     const pg = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
-    const q = new URLSearchParams({ layout: L, caption: CAPTION, accent: ACCENT });
+    const q = new URLSearchParams({ layout: L, caption: CAPTION, accent: ACCENT, tint: TINT });
     await pg.goto('file://' + path.join(__dirname, 'mockup.html') + '?' + q, { waitUntil: 'load', timeout: 90000 });
     await pg.evaluate(() => document.fonts.ready);
     scenes.push({ L, pg });
@@ -268,7 +285,7 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
   const encoders = scenes.map(sc => spawn(findFfmpeg(), ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', OUT(sc.L)], { stdio: ['pipe', 'inherit', 'inherit'] }));
-  const N = Math.round(T * FPS); let last = Date.now();
+  const N = Math.round(Math.min(T, +(args.until || T)) * FPS); let last = Date.now();   // --until 6: render only the first 6s (quick tests)
   for (let i = 0; i < N; i++) {
     const shots = await filmSite(i / FPS, 1 / FPS);
     for (let j = 0; j < scenes.length; j++) {

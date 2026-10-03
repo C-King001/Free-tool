@@ -8,7 +8,7 @@ Turn any website URL into a polished showcase video: the live site scrolling ins
 | `tall`   | 1080×1920   | Laptop on top, phone below | Reels, TikTok, Shorts, Stories    |
 | `laptop` | 1920×1080   | Laptop only                | Clean single-device showcase      |
 
-Each video is about 20 seconds by default (longer with `--pace`, `--hold` or more `--stops`): the devices rise into view, the site scrolls with pauses on sections, then the devices ease back and the site's domain fades in underneath.
+Each video is about 20 seconds by default (longer with `--pace`, `--hold` or more `--stops`): the devices rise into view, the site scrolls with pauses on sections, then the devices ease back and the site's domain fades in underneath. The renderer prints when each pause starts and ends, which helps when timing `--stills`.
 
 ## Setup (once)
 
@@ -51,6 +51,8 @@ Videos land in `output/` as `<site>_<layout>.mp4` (a page path is added to the n
 | `--drift`     | `30`                     | Pixels it keeps drifting while paused, so the screen never freezes. `0` for a dead stop. |
 | `--stops`     | spread evenly            | Exact scroll positions (desktop pixels) to pause on, e.g. `--stops 950,2350,3700`. Add `:seconds` to give one stop its own pause, e.g. `1150:2.8`. The video always ends at the bottom of the page. |
 | `--click`     | —                        | Clicks on the laptop and finger-taps on the phone during a pause, e.g. `--click "0:#tab-spicy,#tab-original"` clicks those two elements (by CSS selector) while paused at the top. Separate stops with `;`. Use stop `0` (with a pause, like `0:5.5` in `--stops`) for the hero. |
+| `--tint`      | blue / peach             | Backdrop colours behind the devices, usually the site's brand colours: `--tint "#7a2028,#b98d44"`. |
+| `--until`     | —                        | Render only the first N seconds (quick test of an effect). |
 | `--sweep`     | —                        | Stops where a cursor glides across the middle of the laptop screen, to show off hover effects, e.g. `--sweep 1150`. Give that stop a longer pause (`1150:2.8`). |
 | `--fps`       | `60`                     | Frame rate. |
 | `--out`       | `output/<site>_<layout>.mp4` | Output file. |
@@ -83,6 +85,12 @@ Meji Foods (~42s). In the hero the cursor clicks Spicy and then Original, so the
 ./render-all.sh https://meji-eight.vercel.app --caption "Meji Foods" --stops "0:5.5,950,1950:2.6,3100,3700,4480,5000,6180,6880,8160,8940" --click "0:#tab-spicy,#tab-original" --sweep 1950 --pace 1.15 --hold 1.1
 ```
 
+WIGPA (~32s). The backdrop is tinted in the brand's burgundy and gold, and the "25 Years" counter ticks up at real speed. Cursor sweeps light up the image cards, the Priest/King/Prophet pillars and the two pathway cards:
+
+```bash
+./render-all.sh https://www.wigpa.org --tint "#7a2028,#b98d44" --accent "#b98d44" --stops "1050,1930,2650,3300:2.6,4290:2.6,4950,5700:2.6,6400" --sweep 3300,4290,5700 --pace 1.15 --hold 1.1
+```
+
 Tip: the best `--stops` are the top of each section, minus a little room for the site's header.
 
 ## Good to know
@@ -92,6 +100,7 @@ Tip: the best `--stops` are the top of each section, minus a little room for the
 - **Effects play on camera.** The page is reloaded after the image-warming pass, so scroll-reveal animations fire during filming rather than before it. CSS animations are slowed to match the capture speed so fades and transitions keep their real timing in the video.
 - **Hover-only effects** need a cursor. Use `--sweep` on the stop where they live.
 - **Click effects** (tabs, toggles, flavour switchers) need `--click`. Find the element's selector by right-clicking it in Chrome, choosing Inspect, and copying its `#id`.
+- **JavaScript animations play at real speed.** Count-ups, typewriters and sliders run on a slowed page clock that matches the video, so they keep their real pace.
 - **Site videos play at real speed.** Autoplaying videos are stepped frame by frame. Open-source Chromium can't decode H.264, so MP4s are converted to VP9 on the fly (cached in your temp folder).
 - **The phone stays in sync with the laptop**: both screens show the same section at the same time, even when the mobile page is longer.
 - **Lazy-loaded images** are warmed up before filming, so sections aren't blank.
