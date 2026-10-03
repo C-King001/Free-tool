@@ -8,7 +8,7 @@ Turn any website URL into a polished showcase video: the live site scrolling ins
 | `tall`   | 1080×1920   | Laptop on top, phone below | Reels, TikTok, Shorts, Stories    |
 | `laptop` | 1920×1080   | Laptop only                | Clean single-device showcase      |
 
-Each video is about 20 seconds: the devices rise into view, the site scrolls with pauses on sections, then the devices ease back and the site's domain fades in underneath.
+Each video is about 20 seconds by default (longer with `--pace`, `--hold` or more `--stops`): the devices rise into view, the site scrolls with pauses on sections, then the devices ease back and the site's domain fades in underneath.
 
 ## Setup (once)
 
@@ -47,6 +47,8 @@ Videos land in `output/` as `<site>_<layout>.mp4`. Each render takes about 3 min
 | `--caption`   | the domain               | Text that fades in at the end. The part after the last dot is coloured, e.g. `example` + **`.com`**. |
 | `--accent`    | `#1f5fff`                | Colour of that highlighted part. Match it to the client's brand. |
 | `--pace`      | `1`                      | `1.3` = slower and calmer, `0.8` = snappier. |
+| `--hold`      | `1.0`                    | Seconds it pauses on each section. Raise it (e.g. `1.4`) so viewers can read more. |
+| `--drift`     | `30`                     | Pixels it keeps drifting while paused, so the screen never freezes. `0` for a dead stop. |
 | `--stops`     | spread evenly            | Exact scroll positions (desktop pixels) to pause on, e.g. `--stops 950,2350,3700`. The video always ends at the bottom of the page. |
 | `--fps`       | `60`                     | Frame rate. |
 | `--out`       | `output/<site>_<layout>.mp4` | Output file. |
@@ -61,13 +63,18 @@ Example with brand colour and a slower pace:
 
 ### Preset used for ExpertLinc
 
+Unhurried version (~35s), pausing on every section:
+
 ```bash
-./render-all.sh https://www.expertlinc.com --stops 950,2350,3700,6050,8000
+./render-all.sh https://www.expertlinc.com --stops 1000,1420,2330,3050,4150,5950,7250,8050,9100,9800 --pace 1.15 --hold 1.1
 ```
+
+Tip: the best `--stops` are the top of each section, minus a little room for the site's header.
 
 ## Good to know
 
 - **Cookie banners** are dismissed automatically (it clicks "Reject"/"Necessary only" first, then "Accept"), and any leftover cookie popup is hidden.
+- **The phone stays in sync with the laptop**: both screens show the same section at the same time, even though the mobile page is longer.
 - **The phone shows the real mobile site** (390px wide, like an iPhone), so responsive layouts get shown off properly.
 - **Lazy-loaded images and scroll animations** are triggered before filming, so sections aren't blank.
 - **Sites that block embedding** (they send `X-Frame-Options` / `frame-ancestors` headers) show a blank screen. Most marketing sites are fine; if one isn't, that site has to allow embedding or be filmed a different way.

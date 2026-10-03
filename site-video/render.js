@@ -31,6 +31,8 @@ const OUTDIR = args.outdir || 'output';
 const OUT = args.out || path.join(OUTDIR, `${host.split('.')[0]}_${LAYOUT}.mp4`);
 const STILLS = args.stills;                                 // "0.5,3,9" -> JPG stills instead of a video
 const PACE = +(args.pace || 1);                             // >1 slower, <1 faster
+const HOLD = +(args.hold || 1.0);                           // seconds paused on each section
+const DRIFT = +(args.drift ?? 30);                          // px of slow drift while paused (feels like reading)
 
 // ---------- ffmpeg ----------
 function findFfmpeg() {
@@ -82,6 +84,20 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   const f = p.frame({ name: 'site' }), m = LAYOUT === 'laptop' ? null : p.frame({ name: 'msite' });
   const H = await prep(f), MH = m ? await prep(m) : 0;
 
+  // Sync the phone to the laptop section by section (falls back to proportional if the pages differ).
+  const sectionTops = fr => fr.evaluate(() => [...document.querySelectorAll('body section, body footer')]
+    .filter(e => !e.parentElement.closest('section, footer') && e.offsetHeight > 50)
+    .map(e => Math.round(e.getBoundingClientRect().top + scrollY)));
+  let mapY = y => H ? y / H * MH : 0;
+  if (m) {
+    const [ds, ms] = await Promise.all([sectionTops(f), sectionTops(m)]);
+    if (ds.length > 1 && ds.length === ms.length) {
+      const A = [0, ...ds.map(v => Math.min(v, H)), H], B = [0, ...ms.map(v => Math.min(v, MH)), MH];
+      mapY = y => { for (let i = 1; i < A.length; i++) if (y <= A[i]) return A[i] === A[i - 1] ? B[i] : B[i - 1] + (B[i] - B[i - 1]) * (y - A[i - 1]) / (A[i] - A[i - 1]); return MH; };
+      console.log(`phone synced to laptop across ${ds.length} sections`);
+    }
+  }
+
   // Scroll plan: [targetY, moveSeconds, holdSeconds].
   // --stops "950,2350,3700" gives exact desktop pixel stops; otherwise stops are spread evenly down the page.
   let targets;
@@ -89,20 +105,24 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   else { const n = Math.min(8, Math.max(3, Math.round(H / 1700))); targets = Array.from({ length: n }, (_, i) => Math.round(H * (i + 1) / n)); }
   const start = 2.6 * PACE, seg = []; let t = start, y = 0;
   targets.forEach((ty, i) => {
-    ty = Math.min(ty, H); const dist = Math.abs(ty - y);
-    const move = Math.min(1.9, Math.max(1.1, 1.0 + dist / 2600)) * PACE, hold = (i === targets.length - 1 ? .3 : 1.0) * PACE;
-    seg.push({ t0: t, t1: t + move, y0: y, y1: ty }); t += move + hold; y = ty;
+    ty = Math.min(ty, H); const dist = Math.abs(ty - y), last = i === targets.length - 1;
+    const move = Math.min(2.2, Math.max(1.1, 0.9 + dist / 2600)) * PACE, hold = (last ? .3 : HOLD) * PACE;
+    seg.push({ t0: t, t1: t + move, y0: y, y1: ty, ease: true }); t += move; y = ty;
+    const d = last ? 0 : Math.min(DRIFT, Math.max(0, H - ty));        // gentle drift while paused
+    seg.push({ t0: t, t1: t + hold, y0: y, y1: y + d, ease: false }); t += hold; y += d;
   });
   const T = t + 2.6;
   console.log(`${host} | layout ${LAYOUT} | page height ${H}px | ${T.toFixed(1)}s`);
-  const scrollAt = tt => { let v = 0; for (const s of seg) { if (tt >= s.t1) v = s.y1; else if (tt > s.t0) { v = s.y0 + (s.y1 - s.y0) * E((tt - s.t0) / (s.t1 - s.t0)); break; } else break; } return v; };
+  const scrollAt = tt => { let v = 0; for (const s of seg) { if (tt >= s.t1) v = s.y1; else if (tt > s.t0) { { const k = (tt - s.t0) / (s.t1 - s.t0); v = s.y0 + (s.y1 - s.y0) * (s.ease ? E(k) : k); } break; } else break; } return v; };
 
   const shoot = async tt => {
     await p.evaluate(([a, b]) => setT(a, b), [tt, T]);
     const sy = scrollAt(tt);
     await f.evaluate(y => scrollTo(0, y), Math.round(sy));
-    if (m) await m.evaluate(y => scrollTo(0, y), Math.round(H ? sy / H * MH : 0));
-    await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+    if (m) await m.evaluate(y => scrollTo(0, y), Math.round(mapY(sy)));
+    // Each site iframe paints in its own process: wait for both to draw the new scroll position.
+    const painted = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await Promise.all([f.evaluate(painted), m ? m.evaluate(painted) : null, p.evaluate(painted)]);
     return p.screenshot({ type: 'jpeg', quality: 95 });
   };
 
