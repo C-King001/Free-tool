@@ -16,7 +16,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:
 .phone{position:relative;width:422px;height:876px;border-radius:66px;padding:16px;background:#111317;
  box-shadow:0 0 0 2px #3a3e45 inset,0 0 0 3px #a9aeb6,0 50px 80px -20px rgba(15,25,55,.45),0 20px 30px -10px rgba(15,25,55,.25)}
 .pscreen{position:relative;width:390px;height:844px;border-radius:50px;overflow:hidden;background:#fff}
-.pscreen iframe{position:absolute;left:0;top:50px;width:390px;height:794px;border:0}
+.pscreen img.shot{position:absolute;left:0;top:50px;width:390px;height:794px}
 .sbar{position:absolute;left:0;right:0;top:0;height:50px;background:#fff;display:flex;justify-content:space-between;align-items:center;padding:4px 30px 0 44px;font:600 16px -apple-system,'Plus Jakarta Sans',sans-serif;color:#111}
 .sbar i{display:inline-block;background:#111;margin-left:5px;vertical-align:middle}
 .island{position:absolute;top:12px;left:50%;width:120px;height:34px;margin-left:-60px;background:#000;border-radius:20px;z-index:2}
@@ -26,7 +26,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:
  box-shadow:0 0 0 2px #2b2e33 inset,0 0 0 1px #9aa0a8;}
 .lid:before{content:"";position:absolute;top:10px;left:50%;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#1d2127;box-shadow:0 0 0 1px #2a2e35}
 .screen{position:relative;width:1280px;height:800px;overflow:hidden;background:#fff;border-radius:4px}
-.screen iframe{position:absolute;left:0;top:0;width:1440px;height:900px;border:0;transform:scale(.888889);transform-origin:0 0}
+.screen img.shot{position:absolute;left:0;top:0;width:1280px;height:800px}
+.cursor{position:absolute;left:0;top:0;width:36px;height:36px;margin:-2px 0 0 -3px;opacity:0;pointer-events:none;z-index:3;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
 .glare{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 38%);}
 .lidback{position:absolute;inset:0;border-radius:26px 26px 6px 6px;background:linear-gradient(180deg,#d6d9de,#b9bdc4);transform:rotateY(180deg) translateZ(1px);backface-visibility:hidden}
 .base{position:relative;width:1520px;height:30px;margin-top:-2px;background:linear-gradient(180deg,#e4e6ea 0%,#c9ccd2 45%,#9ea3ab 100%);
@@ -42,26 +43,29 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:
 <div class="stage">
  <div class="dev" id="ldev"><div class="laptop" id="laptop"><div class="shadow" id="shadow"></div>
   <div class="lid" id="lid"><div class="lidback"></div>
-   <div class="screen"><iframe id="site" name="site" src="about:blank"></iframe><div class="glare"></div></div>
+   <div class="screen"><img class="shot" id="site" alt=""><svg class="cursor" id="cursor" viewBox="0 0 24 24"><path d="M3 2l7.5 19 2.6-7.4L20.5 11z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><div class="glare"></div></div>
   </div>
   <div class="base"></div>
  </div></div>
  <div class="dev" id="pdev"><div class="phone" id="phone">
   <div class="btn" style="left:-4px;top:170px;height:60px"></div><div class="btn" style="left:-4px;top:250px;height:60px"></div><div class="btn" style="right:-4px;top:210px;height:100px"></div>
-  <div class="pscreen"><div class="island"></div><div class="sbar"><span>9:41</span><span><i style="width:17px;height:10px;clip-path:polygon(0 100%,25% 100%,25% 70%,0 70%,0 100%,35% 100%,35% 45%,60% 45%,60% 100%,70% 100%,70% 20%,95% 20%,95% 100%)"></i><i style="width:24px;height:11px;border-radius:3px;background:none;border:1.5px solid #111;position:relative"></i></span></div><iframe id="msite" name="msite" src="about:blank"></iframe><div class="glare"></div></div>
+  <div class="pscreen"><div class="island"></div><div class="sbar"><span>9:41</span><span><i style="width:17px;height:10px;clip-path:polygon(0 100%,25% 100%,25% 70%,0 70%,0 100%,35% 100%,35% 45%,60% 45%,60% 100%,70% 100%,70% 20%,95% 20%,95% 100%)"></i><i style="width:24px;height:11px;border-radius:3px;background:none;border:1.5px solid #111;position:relative"></i></span></div><img class="shot" id="msite" alt=""><div class="glare"></div></div>
  </div></div>
 </div>
 <div class="cap" id="cap"><div class="url"></div></div>
 <script>
 // Everything site-specific comes from the query string (render.js sets it):
-// ?layout=wide|tall|laptop &url=https://... &caption=example.com &accent=#1f5fff
+// ?layout=wide|tall|laptop &caption=example.com &accent=#1f5fff
 const Q=new URLSearchParams(location.search), LAY=Q.get('layout')||'wide';
 const cap0=Q.get('caption')||'', dot=cap0.lastIndexOf('.');
 const capEl=document.querySelector('.cap .url');
 if(dot>0){capEl.textContent=cap0.slice(0,dot);const sp=document.createElement('span');sp.textContent=cap0.slice(dot);capEl.appendChild(sp);} else capEl.textContent=cap0;
 if(Q.get('accent')) document.documentElement.style.setProperty('--accent',Q.get('accent'));
-document.getElementById('site').src=Q.get('url');
-if(LAY=='laptop') document.getElementById('pdev').remove(); else document.getElementById('msite').src=Q.get('url');
+if(LAY=='laptop') document.getElementById('pdev').remove();
+// render.js films the site in real desktop and iPhone browsers and pushes each frame here.
+// Fake mouse cursor on the laptop screen, in desktop-site pixels (1440x900).
+window.setCursor=c=>{const el=document.getElementById('cursor');el.style.opacity=c?c.o:0;if(c)el.style.transform=`translate(${c.x/1440*1280}px,${c.y/900*800}px)`;};
+window.setShots=async(d,m)=>{const a=document.getElementById('site'),b=document.getElementById('msite');a.src=d;if(b&&m)b.src=m;await Promise.all([a.decode(),b&&m?b.decode():null]);};
 // [centerX, centerY, scale] for laptop / phone, caption top
 const CFG={wide:{l:[860,520,.8],p:[1560,600,.74],cap:985},
            tall:{l:[540,600,.665],p:[775,1335,.95],cap:1795},
