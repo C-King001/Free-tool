@@ -69,6 +69,12 @@ Unhurried version (~35s), pausing on every section:
 ./render-all.sh https://www.expertlinc.com --stops 1000,1420,2330,3050,4150,5950,7250,8050,9100,9800 --pace 1.15 --hold 1.1
 ```
 
+ExpertLinc `/experience` page (~37s). The five stops from 4790 to 7800 step through the sticky "Five questions" panel, 01 to 05:
+
+```bash
+./render-all.sh https://www.expertlinc.com/experience --caption expertlinc.com --stops 1100,2240,2620,3620,4790,5800,6800,7800,8940,9600,10560 --pace 1.15 --hold 1.1 --outdir output/experience
+```
+
 Tip: the best `--stops` are the top of each section, minus a little room for the site's header.
 
 ## Good to know
