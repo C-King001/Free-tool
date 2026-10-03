@@ -73,11 +73,12 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   const vcache = path.join(require('os').tmpdir(), 'site-video-cache'); fs.mkdirSync(vcache, { recursive: true });
   const converting = new Map();
   const toVp9 = async (url, body) => {
-    const out = path.join(vcache, require('crypto').createHash('sha1').update(url).digest('hex') + '.mp4');
+    const out = path.join(vcache, require('crypto').createHash('sha1').update('v2:' + url).digest('hex') + '.mp4');
     if (fs.existsSync(out)) return fs.readFileSync(out);
     if (!converting.has(out)) converting.set(out, new Promise((res, rej) => {
       const src = out + '.src'; fs.writeFileSync(src, body);
-      const ff = spawn(findFfmpeg(), ['-y', '-loglevel', 'error', '-i', src, '-t', '60', '-vf', "scale='min(1280,iw)':-2", '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '33',
+      const ff = spawn(findFfmpeg(), ['-y', '-loglevel', 'error', '-i', src, '-t', '60', '-vf', "scale='min(1280,iw)':-2", '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '33', '-g', '1', // all keyframes: instant seeks for frame stepping
+       
         '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1', '-c:a', 'libopus', '-b:a', '96k', '-movflags', '+faststart', out + '.tmp.mp4']);
       ff.on('close', code => { fs.rmSync(src, { force: true }); if (code === 0) { fs.renameSync(out + '.tmp.mp4', out); res(); } else rej(new Error('video convert failed: ' + url)); });
     }));
@@ -229,6 +230,8 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       for (const v of document.querySelectorAll('video')) {
         if (!v.paused && !v.__ctl) { v.pause(); v.__ctl = true; }
         if (!v.__ctl || v.readyState < 2 || !v.duration) continue;
+        const r = v.getBoundingClientRect();
+        if (r.bottom < 0 || r.top > innerHeight) continue;          // off screen: leave it paused
         let t = v.currentTime + dt; if (t >= v.duration) t = v.loop ? t % v.duration : v.duration;
         v.currentTime = t;
         await new Promise(r => { v.addEventListener('seeked', r, { once: true }); setTimeout(r, 400); });
