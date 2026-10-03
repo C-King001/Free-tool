@@ -50,6 +50,7 @@ Videos land in `output/` as `<site>_<layout>.mp4` (a page path is added to the n
 | `--hold`      | `1.0`                    | Seconds it pauses on each section. Raise it (e.g. `1.4`) so viewers can read more. |
 | `--drift`     | `30`                     | Pixels it keeps drifting while paused, so the screen never freezes. `0` for a dead stop. |
 | `--stops`     | spread evenly            | Exact scroll positions (desktop pixels) to pause on, e.g. `--stops 950,2350,3700`. Add `:seconds` to give one stop its own pause, e.g. `1150:2.8`. The video always ends at the bottom of the page. |
+| `--click`     | —                        | Clicks on the laptop and finger-taps on the phone during a pause, e.g. `--click "0:#tab-spicy,#tab-original"` clicks those two elements (by CSS selector) while paused at the top. Separate stops with `;`. Use stop `0` (with a pause, like `0:5.5` in `--stops`) for the hero. |
 | `--sweep`     | —                        | Stops where a cursor glides across the middle of the laptop screen, to show off hover effects, e.g. `--sweep 1150`. Give that stop a longer pause (`1150:2.8`). |
 | `--fps`       | `60`                     | Frame rate. |
 | `--out`       | `output/<site>_<layout>.mp4` | Output file. |
@@ -76,6 +77,12 @@ ExpertLinc `/experience` page (~44s). It pauses on the brochure at 900, then scr
 ./render-all.sh https://www.expertlinc.com/experience --caption expertlinc.com --stops 900,1000:0.8,1150:2.8,2240,2620,3620,4790,5800,6800,7800,8940,9600,10560 --sweep 1150 --pace 1.15 --hold 1.1
 ```
 
+Meji Foods (~42s). In the hero the cursor clicks Spicy and then Original, so the background, pack and copy swap, and the phone gets matching taps. At 1950 a cursor sweeps the product cards so they tilt and crossfade to the plated dish:
+
+```bash
+./render-all.sh https://meji-eight.vercel.app --caption "Meji Foods" --stops "0:5.5,950,1950:2.6,3100,3700,4480,5000,6180,6880,8160,8940" --click "0:#tab-spicy,#tab-original" --sweep 1950 --pace 1.15 --hold 1.1
+```
+
 Tip: the best `--stops` are the top of each section, minus a little room for the site's header.
 
 ## Good to know
@@ -84,6 +91,8 @@ Tip: the best `--stops` are the top of each section, minus a little room for the
 - **Two real browsers film the site.** The laptop is a desktop browser (1440×900). The phone is an emulated iPhone with touch, a mobile browser identity and a retina screen, so touch-only effects (scroll-driven reveals, swipe layouts) play exactly as on a real phone.
 - **Effects play on camera.** The page is reloaded after the image-warming pass, so scroll-reveal animations fire during filming rather than before it. CSS animations are slowed to match the capture speed so fades and transitions keep their real timing in the video.
 - **Hover-only effects** need a cursor. Use `--sweep` on the stop where they live.
+- **Click effects** (tabs, toggles, flavour switchers) need `--click`. Find the element's selector by right-clicking it in Chrome, choosing Inspect, and copying its `#id`.
+- **Site videos play at real speed.** Autoplaying videos are stepped frame by frame. Open-source Chromium can't decode H.264, so MP4s are converted to VP9 on the fly (cached in your temp folder).
 - **The phone stays in sync with the laptop**: both screens show the same section at the same time, even when the mobile page is longer.
 - **Lazy-loaded images** are warmed up before filming, so sections aren't blank.
 - **Sites that block embedding still work**, because pages are filmed directly rather than embedded.

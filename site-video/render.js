@@ -35,6 +35,9 @@ const PACE = +(args.pace || 1);                             // >1 slower, <1 fas
 const HOLD = +(args.hold || 1.0);                           // seconds paused on each section
 const DRIFT = +(args.drift ?? 30);                          // px of slow drift while paused (feels like reading)
 const SWEEPS = args.sweep ? String(args.sweep).split(',').map(Number) : []; // stops where a cursor sweeps across (hover effects)
+// --click "0:#tab-spicy,#tab-original;1800:.btn" -> at that stop's pause, click (laptop) and tap (phone) each selector in turn
+const CLICKS = {};
+if (args.click) for (const part of String(args.click).split(';')) { const i = part.indexOf(':'); CLICKS[+part.slice(0, i)] = part.slice(i + 1).split(',').map(s => s.trim()).filter(Boolean); }
 
 // ---------- ffmpeg ----------
 function findFfmpeg() {
@@ -64,6 +67,30 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   const mob = LAYOUTS.every(L => L === 'laptop') ? null : await (await b.newContext({
     userAgent: iphone.userAgent, viewport: { width: 390, height: 794 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
   })).newPage();
+
+  // Open-source Chromium can't decode H.264, the codec most site videos use, so they would never play.
+  // Convert each MP4 the site requests to VP9 (cached on disk) so videos play like they do in Chrome/Safari.
+  const vcache = path.join(require('os').tmpdir(), 'site-video-cache'); fs.mkdirSync(vcache, { recursive: true });
+  const converting = new Map();
+  const toVp9 = async (url, body) => {
+    const out = path.join(vcache, require('crypto').createHash('sha1').update(url).digest('hex') + '.mp4');
+    if (fs.existsSync(out)) return fs.readFileSync(out);
+    if (!converting.has(out)) converting.set(out, new Promise((res, rej) => {
+      const src = out + '.src'; fs.writeFileSync(src, body);
+      const ff = spawn(findFfmpeg(), ['-y', '-loglevel', 'error', '-i', src, '-t', '60', '-vf', "scale='min(1280,iw)':-2", '-c:v', 'libvpx-vp9', '-b:v', '0', '-crf', '33',
+        '-deadline', 'realtime', '-cpu-used', '8', '-row-mt', '1', '-c:a', 'libopus', '-b:a', '96k', '-movflags', '+faststart', out + '.tmp.mp4']);
+      ff.on('close', code => { fs.rmSync(src, { force: true }); if (code === 0) { fs.renameSync(out + '.tmp.mp4', out); res(); } else rej(new Error('video convert failed: ' + url)); });
+    }));
+    await converting.get(out); return fs.readFileSync(out);
+  };
+  const playableVideos = ctx => ctx.route(/\.(mp4|m4v|mov)(\?|$)/i, async route => {
+    try {
+      const resp = await route.fetch({ headers: { ...route.request().headers(), range: undefined } });
+      const body = await toVp9(route.request().url(), await resp.body());
+      await route.fulfill({ status: 200, contentType: 'video/mp4', body, headers: { 'accept-ranges': 'none', 'access-control-allow-origin': '*' } });
+    } catch (e) { console.warn(String(e.message || e)); await route.continue().catch(() => {}); }
+  });
+  await Promise.all([desk, mob].filter(Boolean).map(pg => playableVideos(pg.context())));
 
   // Load, dismiss cookies, pre-scroll once to warm the image cache, then reload so scroll-reveal
   // animations are fresh and play on camera instead of having already fired.
@@ -125,11 +152,12 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   const start = 2.6 * PACE, seg = []; let t = start, y = 0;
   targets.forEach((ty, i) => {
     ty = Math.min(ty, H); const dist = Math.abs(ty - y), last = i === targets.length - 1;
-    const move = Math.min(2.2, Math.max(1.1, 0.9 + dist / 2600)) * PACE, hold = (last ? .3 : (holdAt[ty] || HOLD)) * PACE;
-    const sweep = SWEEPS.includes(ty);
+    const move = dist === 0 ? 0 : Math.min(2.2, Math.max(1.1, 0.9 + dist / 2600)) * PACE, hold = (last ? .3 : (holdAt[ty] || HOLD)) * PACE;
+    const sweep = SWEEPS.includes(ty), clicks = CLICKS[ty];
     seg.push({ t0: t, t1: t + move, y0: y, y1: ty, ease: true }); t += move; y = ty;
     const d = last ? 0 : Math.min(DRIFT, Math.max(0, H - ty));        // gentle drift while paused
-    seg.push({ t0: t, t1: t + hold, y0: y, y1: y + (sweep ? 0 : d), ease: false, sweep }); t += hold; y += sweep ? 0 : d;
+    const still = sweep || !!clicks;
+    seg.push({ t0: t, t1: t + hold, y0: y, y1: y + (still ? 0 : d), ease: false, sweep, clicks }); t += hold; y += still ? 0 : d;
   });
   const T = t + 2.6;
   console.log(`${host}${new URL(URL_).pathname} | ${LAYOUTS.join(', ')} | page height ${H}px | ${T.toFixed(1)}s`);
@@ -148,31 +176,78 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
   const painted = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   // Hover effects on the laptop: during a --sweep pause, a cursor glides across the element in the middle of the screen.
-  const sweepRects = new Map(); let cursor = null;
-  const cursorAt = async tt => {
-    const s = seg.find(s => s.sweep && tt >= s.t0 && tt < s.t1);
-    if (!s) return null;
-    if (!sweepRects.has(s)) sweepRects.set(s, await desk.evaluate(() => {
-      let el = document.elementFromPoint(innerWidth / 2, innerHeight * .42);
-      while (el && el.parentElement && el.getBoundingClientRect().width < innerWidth * .35) el = el.parentElement;
-      const r = el.getBoundingClientRect(); return { x: r.left, y: Math.max(r.top, 70), w: r.width, h: Math.min(r.bottom, innerHeight) - Math.max(r.top, 70) };
-    }));
-    const r = sweepRects.get(s), k = (tt - s.t0) / (s.t1 - s.t0);
-    const enter = Math.min(1, k / .15), leave = Math.max(0, (k - .85) / .15), mid = Math.min(1, Math.max(0, (k - .1) / .75));
-    const sx = r.x + r.w * (.12 + .76 * E(mid)), syy = r.y + r.h * (.5 + .22 * Math.sin(mid * Math.PI * 2));
-    return { x: sx + (1 - enter) * 160 + leave * 160, y: syy + (1 - enter) * 120, o: Math.min(enter, 1 - leave) };
+  // Clicks: during a --click pause, the cursor visits each selector and clicks it; the phone gets a finger tap at the same moment.
+  const cache = new Map(), done = new Set(); let cursor = null, tap = null;
+  const centerOf = (pg, sel) => pg.evaluate(sel => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel);
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const interact = async tt => {
+    cursor = null; tap = null;
+    const s = seg.find(s => (s.sweep || s.clicks) && tt >= s.t0 && tt < s.t1);
+    if (!s) return;
+    const k = (tt - s.t0) / (s.t1 - s.t0);
+    if (s.sweep) {
+      if (!cache.has(s)) cache.set(s, await desk.evaluate(() => {
+        let el = document.elementFromPoint(innerWidth / 2, innerHeight * .42);
+        while (el && el.parentElement && el.getBoundingClientRect().width < innerWidth * .35) el = el.parentElement;
+        const r = el.getBoundingClientRect(); return { x: r.left, y: Math.max(r.top, 70), w: r.width, h: Math.min(r.bottom, innerHeight) - Math.max(r.top, 70) };
+      }));
+      const r = cache.get(s);
+      const enter = Math.min(1, k / .15), leave = Math.max(0, (k - .85) / .15), mid = Math.min(1, Math.max(0, (k - .1) / .75));
+      const sx = r.x + r.w * (.12 + .76 * E(mid)), syy = r.y + r.h * (.5 + .22 * Math.sin(mid * Math.PI * 2));
+      cursor = { x: sx + (1 - enter) * 160 + leave * 160, y: syy + (1 - enter) * 120, o: Math.min(enter, 1 - leave) };
+      await desk.mouse.move(cursor.x, cursor.y);
+      return;
+    }
+    if (!cache.has(s)) cache.set(s, { P: await Promise.all(s.clicks.map(sel => centerOf(desk, sel))), Q: mob ? await Promise.all(s.clicks.map(sel => centerOf(mob, sel))) : [] });
+    const { P, Q } = cache.get(s), n = s.clicks.length, off = { x: 200, y: 150 };
+    // Each click gets an equal slot: glide in (first 40%), click at 55%, rest.
+    const slot = Math.min(n - 1, Math.max(0, Math.floor((k - .12) / (.76 / n)))), sk = (k - .12 - slot * .76 / n) / (.76 / n);
+    const from = slot === 0 ? (P[0] && { x: P[0].x + off.x, y: P[0].y + off.y }) : P[slot - 1], to = P[slot];
+    if (to && from) {
+      const m = k < .12 ? 0 : E(Math.min(1, Math.max(0, sk / .4)));
+      let x = lerp(from.x, to.x, m), y = lerp(from.y, to.y, m), o = Math.min(1, k / .1);
+      if (k > .88) { const l = (k - .88) / .12; x = lerp(P[n - 1].x, P[n - 1].x + off.x, E(l)); y = lerp(P[n - 1].y, P[n - 1].y + off.y, E(l)); o = 1 - l; }
+      const ck = k > .88 ? -1 : (sk - .55) / .25;                        // 0..1 after the click moment
+      cursor = { x, y, o, press: ck >= -.15 && ck < .25, ripple: ck >= 0 && ck < 1 ? ck : null };
+      await desk.mouse.move(x, y);
+    }
+    if (k <= .88 && sk >= .55) {
+      const key = s.t0 + ':' + slot;
+      if (!done.has(key)) {
+        done.add(key);
+        if (to) await desk.mouse.click(to.x, to.y);
+        if (mob && Q[slot]) await mob.touchscreen.tap(Q[slot].x, Q[slot].y);
+      }
+      const tk = (sk - .55) / .3;
+      if (mob && Q[slot] && tk < 1) tap = { x: Q[slot].x, y: Q[slot].y, k: tk };
+    }
   };
-  const filmSite = async tt => {
-    cursor = await cursorAt(tt);
-    if (cursor) await desk.mouse.move(cursor.x, cursor.y);
+
+  // Videos that autoplay are taken over and stepped one video-frame at a time, so they play at real speed.
+  const installVideoStepper = pg => pg.evaluate(() => {
+    window.__vstep = async dt => {
+      for (const v of document.querySelectorAll('video')) {
+        if (!v.paused && !v.__ctl) { v.pause(); v.__ctl = true; }
+        if (!v.__ctl || v.readyState < 2 || !v.duration) continue;
+        let t = v.currentTime + dt; if (t >= v.duration) t = v.loop ? t % v.duration : v.duration;
+        v.currentTime = t;
+        await new Promise(r => { v.addEventListener('seeked', r, { once: true }); setTimeout(r, 400); });
+      }
+    };
+  });
+  await Promise.all([desk, mob].filter(Boolean).map(installVideoStepper));
+
+  const filmSite = async (tt, dt) => {
+    await interact(tt);
     const sy = scrollAt(tt);
     await Promise.all([desk.evaluate(y => scrollTo(0, y), Math.round(sy)), mob && mob.evaluate(y => scrollTo(0, y), Math.round(mapY(sy)))]);
+    await Promise.all([desk.evaluate(dt => __vstep(dt), dt), mob && mob.evaluate(dt => __vstep(dt), dt)]);
     await Promise.all([desk.evaluate(painted), mob && mob.evaluate(painted)]);
     const [d, m] = await Promise.all([desk.screenshot({ type: 'jpeg', quality: 92 }), mob ? mob.screenshot({ type: 'jpeg', quality: 92 }) : null]);
-    return ['data:image/jpeg;base64,' + d.toString('base64'), m && 'data:image/jpeg;base64,' + m.toString('base64'), cursor];
+    return ['data:image/jpeg;base64,' + d.toString('base64'), m && 'data:image/jpeg;base64,' + m.toString('base64'), cursor, tap];
   };
   const compose = async (scene, tt, shots) => {
-    await scene.pg.evaluate(async ([a, b, c, d, m]) => { setT(a, b); setCursor(c); await setShots(d, m); }, [tt, T, shots[2], shots[0], shots[1]]);
+    await scene.pg.evaluate(async ([a, b, c, tp, d, m]) => { setT(a, b); setCursor(c); setTap(tp); await setShots(d, m); }, [tt, T, shots[2], shots[3], shots[0], shots[1]]);
     await scene.pg.evaluate(painted);
     return scene.pg.screenshot({ type: 'jpeg', quality: 95 });
   };
@@ -183,7 +258,7 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     // Stills: play the timeline up to each requested time at a low frame rate so animations have state.
     const want = String(STILLS).split(',').map(Number).sort((a, b) => a - b); const step = 1 / 10;
     for (let tt = 0, k = 0; k < want.length; tt += step) {
-      const shots = await filmSite(tt);
+      const shots = await filmSite(tt, step);
       if (tt + 1e-9 >= want[k]) { for (const sc of scenes) { const fp = OUT(sc.L).replace(/\.mp4$/, `_${want[k]}s.jpg`); fs.writeFileSync(fp, await compose(sc, tt, shots)); console.log('wrote', fp); } k++; }
     }
     await b.close(); return;
@@ -192,7 +267,7 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', OUT(sc.L)], { stdio: ['pipe', 'inherit', 'inherit'] }));
   const N = Math.round(T * FPS); let last = Date.now();
   for (let i = 0; i < N; i++) {
-    const shots = await filmSite(i / FPS);
+    const shots = await filmSite(i / FPS, 1 / FPS);
     for (let j = 0; j < scenes.length; j++) {
       const buf = await compose(scenes[j], i / FPS, shots);
       if (!encoders[j].stdin.write(buf)) await new Promise(r => encoders[j].stdin.once('drain', r));

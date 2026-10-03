@@ -28,6 +28,8 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:
 .screen{position:relative;width:1280px;height:800px;overflow:hidden;background:#fff;border-radius:4px}
 .screen img.shot{position:absolute;left:0;top:0;width:1280px;height:800px}
 .cursor{position:absolute;left:0;top:0;width:36px;height:36px;margin:-2px 0 0 -3px;opacity:0;pointer-events:none;z-index:3;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+.ripple{position:absolute;left:0;top:0;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:3px solid rgba(255,255,255,.9);box-shadow:0 0 0 2px rgba(0,0,0,.25);opacity:0;pointer-events:none;z-index:3}
+.tap{position:absolute;left:0;top:0;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,255,255,.55);border:2px solid rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(0,0,0,.3);opacity:0;pointer-events:none;z-index:3}
 .glare{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 38%);}
 .lidback{position:absolute;inset:0;border-radius:26px 26px 6px 6px;background:linear-gradient(180deg,#d6d9de,#b9bdc4);transform:rotateY(180deg) translateZ(1px);backface-visibility:hidden}
 .base{position:relative;width:1520px;height:30px;margin-top:-2px;background:linear-gradient(180deg,#e4e6ea 0%,#c9ccd2 45%,#9ea3ab 100%);
@@ -43,13 +45,13 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:
 <div class="stage">
  <div class="dev" id="ldev"><div class="laptop" id="laptop"><div class="shadow" id="shadow"></div>
   <div class="lid" id="lid"><div class="lidback"></div>
-   <div class="screen"><img class="shot" id="site" alt=""><svg class="cursor" id="cursor" viewBox="0 0 24 24"><path d="M3 2l7.5 19 2.6-7.4L20.5 11z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><div class="glare"></div></div>
+   <div class="screen"><img class="shot" id="site" alt=""><div class="ripple" id="ripple"></div><svg class="cursor" id="cursor" viewBox="0 0 24 24"><path d="M3 2l7.5 19 2.6-7.4L20.5 11z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><div class="glare"></div></div>
   </div>
   <div class="base"></div>
  </div></div>
  <div class="dev" id="pdev"><div class="phone" id="phone">
   <div class="btn" style="left:-4px;top:170px;height:60px"></div><div class="btn" style="left:-4px;top:250px;height:60px"></div><div class="btn" style="right:-4px;top:210px;height:100px"></div>
-  <div class="pscreen"><div class="island"></div><div class="sbar"><span>9:41</span><span><i style="width:17px;height:10px;clip-path:polygon(0 100%,25% 100%,25% 70%,0 70%,0 100%,35% 100%,35% 45%,60% 45%,60% 100%,70% 100%,70% 20%,95% 20%,95% 100%)"></i><i style="width:24px;height:11px;border-radius:3px;background:none;border:1.5px solid #111;position:relative"></i></span></div><img class="shot" id="msite" alt=""><div class="glare"></div></div>
+  <div class="pscreen"><div class="island"></div><div class="sbar"><span>9:41</span><span><i style="width:17px;height:10px;clip-path:polygon(0 100%,25% 100%,25% 70%,0 70%,0 100%,35% 100%,35% 45%,60% 45%,60% 100%,70% 100%,70% 20%,95% 20%,95% 100%)"></i><i style="width:24px;height:11px;border-radius:3px;background:none;border:1.5px solid #111;position:relative"></i></span></div><img class="shot" id="msite" alt=""><div class="tap" id="tap"></div><div class="glare"></div></div>
  </div></div>
 </div>
 <div class="cap" id="cap"><div class="url"></div></div>
@@ -64,7 +66,11 @@ if(Q.get('accent')) document.documentElement.style.setProperty('--accent',Q.get(
 if(LAY=='laptop') document.getElementById('pdev').remove();
 // render.js films the site in real desktop and iPhone browsers and pushes each frame here.
 // Fake mouse cursor on the laptop screen, in desktop-site pixels (1440x900).
-window.setCursor=c=>{const el=document.getElementById('cursor');el.style.opacity=c?c.o:0;if(c)el.style.transform=`translate(${c.x/1440*1280}px,${c.y/900*800}px)`;};
+window.setCursor=c=>{const el=document.getElementById('cursor'),rp=document.getElementById('ripple');el.style.opacity=c?c.o:0;
+ if(c){const x=c.x/1440*1280,y=c.y/900*800;el.style.transform=`translate(${x}px,${y}px) scale(${c.press?0.82:1})`;el.style.transformOrigin='3px 2px';
+  if(c.ripple!=null){rp.style.opacity=1-c.ripple;rp.style.transform=`translate(${x}px,${y}px) scale(${.4+1.2*c.ripple})`;} else rp.style.opacity=0;} else rp.style.opacity=0;};
+// Finger tap on the phone screen, in mobile-site pixels (390 wide, below the status bar).
+window.setTap=t=>{const el=document.getElementById('tap');if(!el)return;el.style.opacity=t?(t.k<.25?t.k/.25:1-(t.k-.25)/.75):0;if(t)el.style.transform=`translate(${t.x}px,${t.y+50}px) scale(${t.k<.25?.6+.4*t.k/.25:1+.3*(t.k-.25)})`;};
 window.setShots=async(d,m)=>{const a=document.getElementById('site'),b=document.getElementById('msite');a.src=d;if(b&&m)b.src=m;await Promise.all([a.decode(),b&&m?b.decode():null]);};
 // [centerX, centerY, scale] for laptop / phone, caption top
 const CFG={wide:{l:[860,520,.8],p:[1560,600,.74],cap:985},
