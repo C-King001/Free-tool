@@ -50,8 +50,9 @@ Videos land in `output/` as `<site>_<layout>.mp4` (a page path is added to the n
 | `--hold`      | `1.0`                    | Seconds it pauses on each section. Raise it (e.g. `1.4`) so viewers can read more. |
 | `--drift`     | `30`                     | Pixels it keeps drifting while paused, so the screen never freezes. `0` for a dead stop. |
 | `--stops`     | spread evenly            | Exact scroll positions (desktop pixels) to pause on, e.g. `--stops 950,2350,3700`. Add `:seconds` to give one stop its own pause, e.g. `1150:2.8`. The video always ends at the bottom of the page. |
-| `--click`     | —                        | Clicks on the laptop and finger-taps on the phone during a pause, e.g. `--click "0:#tab-spicy,#tab-original"` clicks those two elements (by CSS selector) while paused at the top. Separate stops with `;`. Use stop `0` (with a pause, like `0:5.5` in `--stops`) for the hero. |
+| `--click`     | —                        | Clicks on the laptop and finger-taps on the phone during a pause. Targets are CSS selectors, or `text=Label` to click a button by its visible text or label (e.g. `text=Panda`). Example: `--click "0:#tab-spicy,#tab-original"` clicks those two elements (by CSS selector) while paused at the top. Separate stops with `;`. Use stop `0` (with a pause, like `0:5.5` in `--stops`) for the hero. |
 | `--tint`      | blue / peach             | Backdrop colours behind the devices, usually the site's brand colours: `--tint "#7a2028,#b98d44"`. |
+| `--endcard`   | `Designed & built by Faithful\|Send a message to book a call` | Branded end card after the site: `headline\|call to action`. A headline ending in `by Name` shows the name large. `--endcard none` turns it off. |
 | `--until`     | —                        | Render only the first N seconds (quick test of an effect). |
 | `--sweep`     | —                        | Stops where a cursor glides across the middle of the laptop screen, to show off hover effects, e.g. `--sweep 1150`. Give that stop a longer pause (`1150:2.8`). |
 | `--fps`       | `60`                     | Frame rate. |
@@ -91,6 +92,12 @@ WIGPA (~32s). The backdrop is tinted in the brand's burgundy and gold, and the "
 ./render-all.sh https://www.wigpa.org --tint "#7a2028,#b98d44" --accent "#b98d44" --stops "1050,1930,2650,3300:2.6,4290:2.6,4950,5700:2.6,6400" --sweep 3300,4290,5700 --pace 1.15 --hold 1.1
 ```
 
+Moms and More (~50s with end card). The cursor switches the design picker (Pink Butterfly, Panda, Bear), sweeps the "Why parents love it" cards, bumps the quantity to 3 in the offer, and opens FAQ answers:
+
+```bash
+./render-all.sh https://momsandmore.com.ng --tint "#f5a524,#ef7a12" --accent "#ef7a12" --stops "1050:5.2,2000:2.4,2750,3480:1.6,4400,5050,5680,6260,7020:3.6,8520:3.6" --click "1050:text=Pink Butterfly,text=Panda,text=Bear;7020:text=Increase quantity,text=Increase quantity;8520:text=Is it heavy?,text=Can I wash it?" --sweep 2000 --pace 1.15 --hold 1.1
+```
+
 Tip: the best `--stops` are the top of each section, minus a little room for the site's header.
 
 ## Good to know
@@ -101,6 +108,7 @@ Tip: the best `--stops` are the top of each section, minus a little room for the
 - **Hover-only effects** need a cursor. Use `--sweep` on the stop where they live.
 - **Click effects** (tabs, toggles, flavour switchers) need `--click`. Find the element's selector by right-clicking it in Chrome, choosing Inspect, and copying its `#id`.
 - **JavaScript animations play at real speed.** Count-ups, typewriters and sliders run on a slowed page clock that matches the video, so they keep their real pace.
+- **YouTube embeds don't play** in the rendering browser (they show "Video unavailable"), so don't `--click` their play buttons. The thumbnails look fine as they are.
 - **Site videos play at real speed.** Autoplaying videos are stepped frame by frame. Open-source Chromium can't decode H.264, so MP4s are converted to VP9 on the fly (cached in your temp folder).
 - **The phone stays in sync with the laptop**: both screens show the same section at the same time, even when the mobile page is longer.
 - **Lazy-loaded images** are warmed up before filming, so sections aren't blank.

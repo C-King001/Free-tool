@@ -27,7 +27,10 @@ const SIZE = L => L === 'tall' ? [1080, 1920] : [1920, 1080];
 const FPS = +(args.fps || 60);
 const CAPTION = args.caption || host;
 const ACCENT = args.accent || '#1f5fff';
-const TINT = args.tint || '';                               // backdrop colours, e.g. "#7a2028,#b98d44" (site brand colours)
+const TINT = args.tint || '';
+// End card shown after the site: "headline|call to action". --endcard none turns it off.
+const ENDCARD = args.endcard === 'none' ? '' : (args.endcard || 'Designed & built by Faithful|Send a message to book a call');
+const END = ENDCARD ? 3.6 : 0;                              // seconds the end card holds                               // backdrop colours, e.g. "#7a2028,#b98d44" (site brand colours)
 const OUTDIR = args.outdir || 'output';
 const SLUG = (host.split('.')[0] + new URL(URL_).pathname.replace(/\/+$/, '').replace(/[^a-z0-9]+/gi, '-')).toLowerCase();
 const OUT = L => args.out && LAYOUTS.length === 1 ? args.out : path.join(OUTDIR, `${SLUG}_${L}.mp4`);
@@ -176,7 +179,7 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     const still = sweep || !!clicks;
     seg.push({ t0: t, t1: t + hold, y0: y, y1: y + (still ? 0 : d), ease: false, sweep, clicks }); t += hold; y += still ? 0 : d;
   });
-  const T = t + 2.6;
+  const T = t + 2.6 + END;
   console.log('pauses: ' + seg.filter(s => !s.ease).map(s => `${Math.round(s.y0)}@${s.t0.toFixed(1)}-${s.t1.toFixed(1)}s`).join('  '));
   console.log(`${host}${new URL(URL_).pathname} | ${LAYOUTS.join(', ')} | page height ${H}px | ${T.toFixed(1)}s`);
   const scrollAt = tt => { let v = 0; for (const s of seg) { if (tt >= s.t1) v = s.y1; else if (tt > s.t0) { { const k = (tt - s.t0) / (s.t1 - s.t0); v = s.y0 + (s.y1 - s.y0) * (s.ease ? E(k) : k); } break; } else break; } return v; };
@@ -186,7 +189,7 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   for (const L of LAYOUTS) {
     const [w, h] = SIZE(L);
     const pg = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
-    const q = new URLSearchParams({ layout: L, caption: CAPTION, accent: ACCENT, tint: TINT });
+    const q = new URLSearchParams({ layout: L, caption: CAPTION, accent: ACCENT, tint: TINT, endcard: ENDCARD, end: END });
     await pg.goto('file://' + path.join(__dirname, 'mockup.html') + '?' + q, { waitUntil: 'load', timeout: 90000 });
     await pg.evaluate(() => document.fonts.ready);
     scenes.push({ L, pg });
@@ -196,7 +199,20 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   // Hover effects on the laptop: during a --sweep pause, a cursor glides across the element in the middle of the screen.
   // Clicks: during a --click pause, the cursor visits each selector and clicks it; the phone gets a finger tap at the same moment.
   const cache = new Map(), done = new Set(); let cursor = null, tap = null;
-  const centerOf = (pg, sel) => pg.evaluate(sel => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel);
+  // A target is a CSS selector, or text=Label to find a button/link by its visible text or aria-label
+  // (the one nearest the middle of the screen wins, so repeated buttons further down the page are ignored).
+  const findEl = sel => {
+    let els;
+    if (sel.startsWith('text=')) {
+      const want = sel.slice(5).trim().toLowerCase();
+      els = [...document.querySelectorAll('button,a,[role=button],[role=tab],summary,label')]
+        .filter(e => [e.getAttribute('aria-label'), e.textContent].some(s => (s || '').trim().replace(/\s+/g, ' ').toLowerCase() === want));
+    } else els = [...document.querySelectorAll(sel)];
+    return els.filter(e => e.getBoundingClientRect().width > 0)
+      .sort((a, b) => Math.abs(a.getBoundingClientRect().top - innerHeight / 2) - Math.abs(b.getBoundingClientRect().top - innerHeight / 2))[0];
+  };
+  await Promise.all([desk, mob].filter(Boolean).map(pg => pg.evaluate(src => { window.__find = eval('(' + src + ')'); }, findEl.toString())));
+  const centerOf = (pg, sel) => pg.evaluate(sel => { const e = __find(sel); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel);
   const lerp = (a, b, k) => a + (b - a) * k;
   const interact = async tt => {
     cursor = null; tap = null;
@@ -216,15 +232,18 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       await desk.mouse.move(cursor.x, cursor.y);
       return;
     }
-    if (!cache.has(s)) cache.set(s, { P: await Promise.all(s.clicks.map(sel => centerOf(desk, sel))), Q: mob ? await Promise.all(s.clicks.map(sel => centerOf(mob, sel))) : [] });
-    const { P, Q } = cache.get(s), n = s.clicks.length, off = { x: 200, y: 150 };
-    // Each click gets an equal slot: glide in (first 40%), click at 55%, rest.
+    // Targets are looked up live every frame, since opening one thing (an accordion) can move the next.
+    const n = s.clicks.length, off = { x: 200, y: 150 };
     const slot = Math.min(n - 1, Math.max(0, Math.floor((k - .12) / (.76 / n)))), sk = (k - .12 - slot * .76 / n) / (.76 / n);
-    const from = slot === 0 ? (P[0] && { x: P[0].x + off.x, y: P[0].y + off.y }) : P[slot - 1], to = P[slot];
-    if (to && from) {
+    const st = cache.get(s) || {}; cache.set(s, st);
+    const to = await centerOf(desk, s.clicks[slot]);
+    if (to) {
+      st.last = st.last || { x: to.x + off.x, y: to.y + off.y };
+      if (st.slot !== slot) { st.slot = slot; st.from = { ...st.last }; }
       const m = k < .12 ? 0 : E(Math.min(1, Math.max(0, sk / .4)));
-      let x = lerp(from.x, to.x, m), y = lerp(from.y, to.y, m), o = Math.min(1, k / .1);
-      if (k > .88) { const l = (k - .88) / .12; x = lerp(P[n - 1].x, P[n - 1].x + off.x, E(l)); y = lerp(P[n - 1].y, P[n - 1].y + off.y, E(l)); o = 1 - l; }
+      let x = lerp(st.from.x, to.x, m), y = lerp(st.from.y, to.y, m), o = Math.min(1, k / .1);
+      if (k > .88) { const l = (k - .88) / .12; x = lerp(st.last.x, st.last.x + off.x, E(l)); y = lerp(st.last.y, st.last.y + off.y, E(l)); o = 1 - l; }
+      else st.last = { x, y };
       const ck = k > .88 ? -1 : (sk - .55) / .25;                        // 0..1 after the click moment
       cursor = { x, y, o, press: ck >= -.15 && ck < .25, ripple: ck >= 0 && ck < 1 ? ck : null };
       await desk.mouse.move(x, y);
@@ -234,10 +253,11 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       if (!done.has(key)) {
         done.add(key);
         if (to) await desk.mouse.click(to.x, to.y);
-        if (mob && Q[slot]) await mob.touchscreen.tap(Q[slot].x, Q[slot].y);
+        // The phone taps the element directly, so a sticky bar or overlay sitting on top of it can't swallow the tap.
+        if (mob) await mob.evaluate(sel => { const e = __find(sel); if (e) { e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' })); e.click(); } }, s.clicks[slot]);
       }
-      const tk = (sk - .55) / .3;
-      if (mob && Q[slot] && tk < 1) tap = { x: Q[slot].x, y: Q[slot].y, k: tk };
+      const tk = (sk - .55) / .3, q = mob && tk < 1 ? await centerOf(mob, s.clicks[slot]) : null;
+      if (q && q.y > 0 && q.y < 794) tap = { x: q.x, y: q.y, k: tk };
     }
   };
 

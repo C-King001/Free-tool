@@ -32,6 +32,13 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:
 .cursor{position:absolute;left:0;top:0;width:36px;height:36px;margin:-2px 0 0 -3px;opacity:0;pointer-events:none;z-index:3;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
 .ripple{position:absolute;left:0;top:0;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:3px solid rgba(255,255,255,.9);box-shadow:0 0 0 2px rgba(0,0,0,.25);opacity:0;pointer-events:none;z-index:3}
 .tap{position:absolute;left:0;top:0;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,255,255,.55);border:2px solid rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(0,0,0,.3);opacity:0;pointer-events:none;z-index:3}
+.endcard{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;opacity:0;z-index:20;
+ background:radial-gradient(900px 600px at 50% 40%, color-mix(in srgb,var(--t1) 35%,#14161c) 0%, #0f1115 70%);color:#fff;text-align:center;padding:0 80px}
+.endcard .by{font-size:30px;font-weight:600;letter-spacing:6px;text-transform:uppercase;color:rgba(255,255,255,.65)}
+.endcard .name{font-size:120px;font-weight:800;letter-spacing:-3px;line-height:1;margin-top:-18px;color:#fff}
+.endcard .name span{color:var(--accent,#1f5fff)}
+.endcard .cta{display:inline-flex;align-items:center;gap:16px;padding:24px 44px;border-radius:999px;background:#fff;color:#111;font-size:34px;font-weight:700}
+.endcard .cta svg{width:30px;height:30px}
 .glare{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,0) 38%);}
 .lidback{position:absolute;inset:0;border-radius:26px 26px 6px 6px;background:linear-gradient(180deg,#d6d9de,#b9bdc4);transform:rotateY(180deg) translateZ(1px);backface-visibility:hidden}
 .base{position:relative;width:1520px;height:30px;margin-top:-2px;background:linear-gradient(180deg,#e4e6ea 0%,#c9ccd2 45%,#9ea3ab 100%);
@@ -56,6 +63,7 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:
   <div class="pscreen"><div class="island"></div><div class="sbar"><span>9:41</span><span><i style="width:17px;height:10px;clip-path:polygon(0 100%,25% 100%,25% 70%,0 70%,0 100%,35% 100%,35% 45%,60% 45%,60% 100%,70% 100%,70% 20%,95% 20%,95% 100%)"></i><i style="width:24px;height:11px;border-radius:3px;background:none;border:1.5px solid #111;position:relative"></i></span></div><img class="shot" id="msite" alt=""><div class="tap" id="tap"></div><div class="glare"></div></div>
  </div></div>
 </div>
+<div class="endcard" id="endcard"><div class="by" id="ec-by"></div><div class="name" id="ec-name"></div><div class="cta" id="ec-cta"><span></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div></div>
 <div class="cap" id="cap"><div class="url"></div></div>
 <script>
 // Everything site-specific comes from the query string (render.js sets it):
@@ -65,6 +73,12 @@ const cap0=Q.get('caption')||'', dot=cap0.lastIndexOf('.');
 const capEl=document.querySelector('.cap .url');
 if(dot>0){capEl.textContent=cap0.slice(0,dot);const sp=document.createElement('span');sp.textContent=cap0.slice(dot);capEl.appendChild(sp);} else capEl.textContent=cap0;
 if(Q.get('accent')) document.documentElement.style.setProperty('--accent',Q.get('accent'));
+// End card: "Designed & built by Faithful|Send a message to book a call" -> small label, big name, CTA pill.
+const EC=(Q.get('endcard')||'').split('|'), END=+(Q.get('end')||0);
+if(EC[0]){const m=EC[0].match(/^(.*\bby)\s+(.+)$/i);document.getElementById('ec-by').textContent=m?m[1]:'';
+ document.getElementById('ec-name').innerHTML=(m?m[2]:EC[0]).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'<span>.</span>';
+ document.querySelector('#ec-cta span').textContent=EC[1]||'';if(!EC[1])document.getElementById('ec-cta').remove();}
+if(LAY=='tall'){const n=document.getElementById('ec-name');n.style.fontSize='104px';document.querySelector('.endcard').style.gap='40px';}
 if(Q.get('tint')){const [a,b]=Q.get('tint').split(',');document.documentElement.style.setProperty('--t1',a);document.documentElement.style.setProperty('--t2',b||a);}
 if(LAY=='laptop') document.getElementById('pdev').remove();
 // render.js films the site in real desktop and iPhone browsers and pushes each frame here.
@@ -84,7 +98,11 @@ if(LAY=='tall'){document.querySelector('.cap .url').style.fontSize='64px';}
 const E=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2, C=(x,a,b)=>Math.min(1,Math.max(0,(x-a)/(b-a)));
 window.setT=(t,T)=>{
  const L=document.getElementById('ldev'),P=document.getElementById('pdev'),cap=document.getElementById('cap');
- const a=E(C(t,0,1.6)), b=E(C(t,.35,1.9)), out=E(C(t,T-2.6,T-1.2));
+ const T0=T-END, a=E(C(t,0,1.6)), b=E(C(t,.35,1.9)), out=E(C(t,T0-2.6,T0-1.2));
+ const ec=document.getElementById('endcard');
+ if(END){const k=C(t,T0-.35,T0+.35);ec.style.opacity=E(k);
+  [['ec-by',.15],['ec-name',.3],['ec-cta',.55]].forEach(([id,d])=>{const el=document.getElementById(id);if(!el)return;const q=E(C(t,T0+d-.1,T0+d+.5));el.style.opacity=q;el.style.transform=`translateY(${30*(1-q)}px)`;});
+  const cta=document.getElementById('ec-cta');if(cta){const p=C(t,T0+1.6,T0+3.2);cta.style.boxShadow=`0 0 0 ${18*p}px color-mix(in srgb,var(--accent,#1f5fff) ${Math.round(45*(1-p))}%,transparent)`;}}
  const drift=Math.sin(t*.45)*1.6*(1-out), bob=Math.sin(t*.9)*6*(1-out);
  const [lx,ly,ls]=CFG.l,[px,py,ps]=CFG.p, k=1-.08*out, up=-45*out;
  L.style.opacity=E(C(t,0,.7));
