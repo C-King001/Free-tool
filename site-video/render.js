@@ -284,10 +284,11 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     await Promise.all([desk.evaluate(dt => __vstep(dt), dt), mob && mob.evaluate(dt => __vstep(dt), dt)]);
     await Promise.all([desk.evaluate(painted), mob && mob.evaluate(painted)]);
     const [d, m] = await Promise.all([desk.screenshot({ type: 'jpeg', quality: 92 }), mob ? mob.screenshot({ type: 'jpeg', quality: 92 }) : null]);
-    return ['data:image/jpeg;base64,' + d.toString('base64'), m && 'data:image/jpeg;base64,' + m.toString('base64'), cursor, tap];
+    return [d, m, cursor, tap];
   };
   const compose = async (scene, tt, shots) => {
-    await scene.pg.evaluate(async ([a, b, c, tp, d, m]) => { setT(a, b); setCursor(c); setTap(tp); await setShots(d, m); }, [tt, T, shots[2], shots[3], shots[0], shots[1]]);
+    const url = buf => buf && 'data:image/jpeg;base64,' + buf.toString('base64');
+    await scene.pg.evaluate(async ([a, b, c, tp, d, m]) => { setT(a, b); setCursor(c); setTap(tp); await setShots(d, m); }, [tt, T, shots[2], shots[3], url(shots[0]), url(shots[1])]);
     await scene.pg.evaluate(painted);
     return scene.pg.screenshot({ type: 'jpeg', quality: 95 });
   };
@@ -302,6 +303,29 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       if (tt + 1e-9 >= want[k]) { for (const sc of scenes) { const fp = OUT(sc.L).replace(/\.mp4$/, `_${want[k]}s.jpg`); fs.writeFileSync(fp, await compose(sc, tt, shots)); console.log('wrote', fp); } k++; }
     }
     await b.close(); return;
+  }
+  if (args.clips) {
+    // Clip mode (raw footage for ads): saves what each browser filmed, with no mockup, as desk.webm and
+    // mob.webm (every frame a keyframe, so an editor can jump to any frame), plus clip.json holding the
+    // cursor and tap position for every frame and the pause schedule.
+    const dir = String(args.clips); fs.mkdirSync(dir, { recursive: true });
+    const enc = (file, fps) => spawn(findFfmpeg(), ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-i', '-',
+      '-c:v', 'libvpx-vp9', '-crf', '18', '-b:v', '0', '-g', '1', '-deadline', 'good', '-cpu-used', '4', '-row-mt', '1', '-pix_fmt', 'yuv420p', path.join(dir, file)], { stdio: ['pipe', 'inherit', 'inherit'] });
+    const ed = enc('desk.webm', FPS), em = mob && enc('mob.webm', FPS), meta = [];
+    const N = Math.round(Math.min(T, +(args.until || T)) * FPS); let last = Date.now();
+    const put = async (e, buf) => { if (!e.stdin.write(buf)) await new Promise(r => e.stdin.once('drain', r)); };
+    for (let i = 0; i < N; i++) {
+      const [d, m, c, tp] = await filmSite(i / FPS, 1 / FPS);
+      await put(ed, d); if (em) await put(em, m);
+      meta.push([c && [Math.round(c.x), Math.round(c.y), +c.o.toFixed(2), c.press ? 1 : 0, c.ripple == null ? -1 : +c.ripple.toFixed(2)], tp && [Math.round(tp.x), Math.round(tp.y), +tp.k.toFixed(2)]]);
+      const now = Date.now(); await setRate((1000 / FPS) / Math.max(1, now - last)); last = now;
+      if (i % (FPS * 2) === 0) process.stdout.write(`\r  frame ${i}/${N}`);
+    }
+    for (const e of [ed, em].filter(Boolean)) e.stdin.end();
+    await Promise.all([ed, em].filter(Boolean).map(e => new Promise(r => e.on('close', r))));
+    fs.writeFileSync(path.join(dir, 'clip.json'), JSON.stringify({ url: URL_, fps: FPS, frames: N,
+      pauses: seg.filter(s => !s.ease).map(s => ({ y: Math.round(s.y0), t0: +s.t0.toFixed(2), t1: +s.t1.toFixed(2) })), meta }));
+    await b.close(); console.log(`\r  done -> ${dir}            `); return;
   }
   const encoders = scenes.map(sc => spawn(findFfmpeg(), ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', OUT(sc.L)], { stdio: ['pipe', 'inherit', 'inherit'] }));

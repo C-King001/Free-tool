@@ -1,0 +1,210 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Portfolio ad</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* 1080x1920 TikTok ad scene. ad.js sets ?concept= and calls drawFrame(t) for every frame.
+   Text stays inside TikTok's safe zone: clear of the bottom ~20% and the right-hand icon column. */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#0d0f14;font-family:'Plus Jakarta Sans',sans-serif;color:#fff}
+#glow{position:absolute;inset:-200px;background:radial-gradient(700px 700px at 50% 55%,var(--g,#1f5fff) 0%,transparent 70%);opacity:.35;filter:blur(40px)}
+#glow2{position:absolute;inset:0;background:radial-gradient(900px 500px at 50% 0%,rgba(255,255,255,.06),transparent 70%)}
+.dev{position:absolute;left:0;top:0;transform-origin:0 0;opacity:0}
+.phone{position:relative;width:422px;height:876px;border-radius:66px;padding:16px;background:#111317;
+ box-shadow:0 0 0 2px #3a3e45 inset,0 0 0 3px #a9aeb6,0 60px 90px -20px rgba(0,0,0,.7)}
+.pscreen{position:relative;width:390px;height:844px;border-radius:50px;overflow:hidden;background:#fff}
+.pscreen video{position:absolute;left:0;top:50px;width:390px;height:794px;object-fit:cover;background:#fff}
+.island{position:absolute;top:12px;left:50%;width:120px;height:34px;margin-left:-60px;background:#000;border-radius:20px;z-index:4}
+.sbar{position:absolute;left:0;right:0;top:0;height:50px;background:#fff;display:flex;justify-content:space-between;align-items:center;padding:4px 30px 0 44px;font:600 16px -apple-system,'Plus Jakarta Sans',sans-serif;color:#111;z-index:3}
+.tap{position:absolute;left:0;top:0;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,255,255,.55);border:2px solid rgba(255,255,255,.95);box-shadow:0 2px 10px rgba(0,0,0,.3);opacity:0;z-index:5}
+.laptop{width:1520px}
+.lid{position:relative;width:1336px;height:856px;margin:0 auto;background:#0d0f12;border-radius:26px 26px 6px 6px;padding:26px 28px 30px;box-shadow:0 0 0 2px #2b2e33 inset,0 0 0 1px #9aa0a8}
+.screen{position:relative;width:1280px;height:800px;overflow:hidden;background:#fff;border-radius:4px}
+.screen video{position:absolute;inset:0;width:1280px;height:800px;object-fit:cover}
+.base{position:relative;width:1520px;height:30px;margin-top:-2px;background:linear-gradient(180deg,#e4e6ea 0%,#c9ccd2 45%,#9ea3ab 100%);border-radius:3px 3px 26px 26px}
+.base:before{content:"";position:absolute;left:50%;top:0;width:220px;height:12px;margin-left:-110px;background:linear-gradient(180deg,#b8bcc3,#d3d6db);border-radius:0 0 14px 14px}
+.cursor{position:absolute;left:0;top:0;width:44px;height:44px;margin:-2px 0 0 -3px;opacity:0;z-index:5;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));transform-origin:3px 2px}
+.ripple{position:absolute;left:0;top:0;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:4px solid rgba(255,255,255,.9);box-shadow:0 0 0 2px rgba(0,0,0,.25);opacity:0;z-index:5}
+/* wireframe "dead website" for the 3-seconds concept */
+.wire{position:absolute;inset:0;background:#e9eaee;z-index:6;opacity:0;padding:50px 90px}
+.wire i{display:block;background:#cfd2d8;border-radius:10px;margin-bottom:26px}
+.count{position:absolute;left:50%;top:50%;width:260px;height:260px;margin:-130px 0 0 -130px;border-radius:50%;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;font-size:150px;font-weight:800;box-shadow:0 20px 50px rgba(0,0,0,.15)}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;z-index:30;pointer-events:none}
+/* captions */
+#text{position:absolute;left:70px;right:170px;top:190px;z-index:20}
+.pill{display:inline-block;padding:12px 26px;border-radius:999px;background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.35);font-size:30px;font-weight:700;letter-spacing:.5px;margin-bottom:22px;backdrop-filter:blur(6px)}
+.head{font-size:84px;font-weight:800;line-height:1.02;letter-spacing:-2px}
+.head .w{display:inline-block}
+.head em{font-style:normal;color:var(--hl,#ffd84d)}
+.line{font-size:46px;font-weight:700;line-height:1.15;letter-spacing:-.5px}
+.line b{color:var(--hl,#ffd84d)}
+#slam{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 120px 0 80px;font-size:150px;font-weight:800;letter-spacing:-4px;line-height:1;z-index:25;opacity:0}
+.swipe{position:absolute;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;background:rgba(255,255,255,.5);border:3px solid #fff;opacity:0;z-index:22}
+/* end card */
+#end{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;z-index:40;opacity:0;text-align:center;padding:0 80px;
+ background:radial-gradient(900px 700px at 50% 42%,color-mix(in srgb,var(--g,#1f5fff) 35%,#14161c) 0%,#0d0f14 72%)}
+#end .by{font-size:34px;font-weight:600;letter-spacing:8px;text-transform:uppercase;color:rgba(255,255,255,.65)}
+#end .name{font-size:150px;font-weight:800;letter-spacing:-4px;line-height:1;margin-top:-20px}
+#end .name span{color:var(--hl,#ffd84d)}
+#end .cta{display:inline-flex;align-items:center;gap:18px;padding:30px 52px;border-radius:999px;background:#fff;color:#111;font-size:40px;font-weight:700}
+#end .cta svg{width:36px;height:36px}
+</style></head><body>
+<div id="glow"></div><div id="glow2"></div>
+<div id="stage"></div>
+<div id="text"></div>
+<div id="slam"></div>
+<div class="swipe" id="swipe"></div>
+<div class="flash" id="flash"></div>
+<div id="end"><div class="by">Designed &amp; built by</div><div class="name">Faithful<span>.</span></div>
+ <div class="cta"><span>Send a message to book a call</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div></div>
+<script>
+const E=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2, C=(x,a,b)=>Math.min(1,Math.max(0,(x-a)/(b-a))), L=(a,b,k)=>a+(b-a)*k;
+const OUT=t=>1-Math.pow(1-t,3);
+const $=id=>document.getElementById(id), stage=$('stage');
+const CONCEPT=new URLSearchParams(location.search).get('concept')||'feed';
+// window.CLIPS is injected by ad.js: {food:{base,fps,frames,meta}, ...}
+const GLOW={food:'#e8501a',careers:'#2f6bff',faith:'#b98d44',ecom:'#ef7a12'};
+
+/* ---------- devices ---------- */
+const SBAR='<div class="sbar"><span>9:41</span><span>●●● ▮</span></div>';
+function makePhone(id){const d=document.createElement('div');d.className='dev';d.id=id;
+ d.innerHTML=`<div class="phone"><div class="pscreen"><div class="island"></div>${SBAR}<video muted playsinline preload="auto" class="va"></video><video muted playsinline preload="auto" class="vb"></video><div class="tap"></div></div></div>`;stage.appendChild(d);return d;}
+function makeLaptop(id){const d=document.createElement('div');d.className='dev';d.id=id;
+ d.innerHTML=`<div class="laptop"><div class="lid"><div class="screen"><video muted playsinline preload="auto" class="va"></video>
+ <div class="wire"><i style="height:46px;width:30%"></i><i style="height:70px;width:70%;margin-top:50px"></i><i style="height:70px;width:55%"></i><i style="height:220px;width:100%;margin-top:40px"></i><i style="height:30px;width:80%"></i><div class="count">3</div></div>
+ <div class="ripple"></div><svg class="cursor" viewBox="0 0 24 24"><path d="M3 2l7.5 19 2.6-7.4L20.5 11z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div></div><div class="base"></div></div>`;stage.appendChild(d);return d;}
+const PH=[makePhone('p0'),makePhone('p1'),makePhone('p2'),makePhone('p3')], LAP=makeLaptop('lap');
+
+// place a device: x,y = top-left in px, s = scale, o = opacity, extra = extra transform
+const place=(d,x,y,s,o=1,extra='')=>{d.style.opacity=o;d.style.transform=`translate(${x}px,${y}px) scale(${s}) ${extra}`;};
+const hide=d=>{d.style.opacity=0;};
+
+/* ---------- clip playback: each frame lists which clip/time every video slot shows ---------- */
+const jobs=[];
+function show(video,clip,dev,t,yOff=0){ // t = seconds into the clip
+ const c=CLIPS[clip];const src=c.base+(dev==='desk'?'desk.webm':'mob.webm');
+ video.style.transform=`translateY(${yOff}px)`;video.style.visibility='visible';
+ jobs.push({video,src,time:Math.max(0,Math.min(t,c.frames/c.fps-0.02))});
+ return Math.min(c.frames-1,Math.max(0,Math.round(t*c.fps)));
+}
+async function flush(){
+ await Promise.all(jobs.map(async j=>{const v=j.video;
+  if(v.dataset.src!==j.src){v.dataset.src=j.src;v.src=j.src;await new Promise(r=>{v.addEventListener('loadeddata',r,{once:true});setTimeout(r,8000);});}
+  if(Math.abs(v.currentTime-j.time)>1e-3){v.currentTime=j.time;await new Promise(r=>{v.addEventListener('seeked',r,{once:true});setTimeout(r,3000);});}
+ }));
+ jobs.length=0;
+}
+function resetSlots(){document.querySelectorAll('video').forEach(v=>v.style.visibility='hidden');
+ document.querySelectorAll('.tap,.cursor,.ripple').forEach(e=>e.style.opacity=0);}
+// overlays recorded with the clip
+function phoneTap(dev,clip,f){const m=CLIPS[clip].meta[f];const el=dev.querySelector('.tap');const tp=m&&m[1];
+ if(!tp){el.style.opacity=0;return;}const k=tp[2];el.style.opacity=k<.25?k/.25:1-(k-.25)/.75;
+ el.style.transform=`translate(${tp[0]}px,${tp[1]+50}px) scale(${k<.25?.6+.4*k/.25:1+.3*(k-.25)})`;}
+function lapCursor(clip,f){const m=CLIPS[clip].meta[f];const c=m&&m[0];const cur=LAP.querySelector('.cursor'),rp=LAP.querySelector('.ripple');
+ if(!c){cur.style.opacity=0;rp.style.opacity=0;return;}const x=c[0]/1440*1280,y=c[1]/900*800;
+ cur.style.opacity=c[2];cur.style.transform=`translate(${x}px,${y}px) scale(${c[3]?.82:1})`;
+ if(c[4]>=0){rp.style.opacity=1-c[4];rp.style.transform=`translate(${x}px,${y}px) scale(${.4+1.2*c[4]})`;}else rp.style.opacity=0;}
+const phoneClip=(dev,slot,clip,t,yOff=0)=>{const f=show(dev.querySelector(slot),clip,'mob',t,yOff);phoneTap(dev,clip,f);};
+const lapClip=(clip,t)=>{const f=show(LAP.querySelector('.va'),clip,'desk',t);lapCursor(clip,f);};
+
+/* ---------- text ---------- */
+let lastText='';
+function text(html){if(html!==lastText){$('text').innerHTML=html;lastText=html;}}
+function headWords(lines,t,t0,step=.32){ // pop words in one by one
+ let i=0;return lines.map(l=>l.split(' ').map(w=>{const k=OUT(C(t,t0+i*step,t0+i*step+.28));i++;
+  return `<span class="w" style="opacity:${k};transform:translateY(${(1-k)*40}px) scale(${.9+.1*k})">${w}</span>`;}).join(' ')).join('<br>');}
+const fadeIn=(t,t0,d=.35)=>OUT(C(t,t0,t0+d));
+function slam(word,t,t0,t1){const s=$('slam');if(t<t0||t>=t1){s.style.opacity=0;return;}
+ const k=OUT(C(t,t0,t0+.22));s.style.opacity=1;s.innerHTML=word;s.style.transform=`scale(${1.35-.35*k})`;}
+function glow(c){document.documentElement.style.setProperty('--g',c);}
+function endCard(t,t0){const e=$('end');const k=E(C(t,t0,t0+.45));e.style.opacity=k;
+ [['.by',.15],['.name',.3],['.cta',.55]].forEach(([q,d])=>{const el=e.querySelector(q);const v=E(C(t,t0+d,t0+d+.5));el.style.opacity=v;el.style.transform=`translateY(${40*(1-v)}px)`;});
+ const p=C(t,t0+1.6,t0+3.2);e.querySelector('.cta').style.boxShadow=`0 0 0 ${22*p}px rgba(255,255,255,${.35*(1-p)})`;}
+
+/* ---------- concept 1: The Feed ---------- */
+// from = where in each clip the signature moment starts (seconds), filled in by ad.js from the clips
+const FEED=[
+ {clip:'food',label:'Food brand',line:'Tap → the <b>whole page</b> changes flavour'},
+ {clip:'careers',label:'Careers platform',line:'Scroll → the brochure <b>opens</b> into the real room'},
+ {clip:'faith',label:'Faith organisation',line:'Numbers that <b>count up</b> live'},
+ {clip:'ecom',label:'E-commerce store',line:'Tap → <b>new design</b>, instantly'}];
+function feed(t){
+ const SEG=3.9, SW=.45, T0=0, nS=FEED.length, tGrid=T0+SEG*nS, tEnd=tGrid+3.9, total=tEnd+3.6;
+ const P=PH[0]; const big={x:(1080-422*1.62)/2,y:560,s:1.62};
+ // phone feed
+ if(t<tGrid+.01){
+  place(P,big.x,big.y+60*(1-OUT(C(t,0,.5))),big.s,OUT(C(t,0,.3)));
+  const i=Math.min(nS-1,Math.floor((t-T0)/SEG)), lt=t-T0-i*SEG, s=FEED[i];
+  const sw=i<nS-1?E(C(lt,SEG-SW,SEG)):0;                       // swipe-up progress into the next site
+  phoneClip(P,'.va',s.clip,CLIPS[s.clip].feed+lt,-794*sw);
+  if(sw>0){const n=FEED[i+1];phoneClip(P,'.vb',n.clip,CLIPS[n.clip].feed,794*(1-sw));}
+  glow(GLOW[s.clip]);
+  const fs=$('swipe');if(sw>0&&sw<1){fs.style.opacity=Math.sin(sw*Math.PI);fs.style.left='540px';fs.style.top=(1500-700*sw)+'px';}else fs.style.opacity=0;
+  if(t<2.7) text(`<div class="head">${headWords(['4 businesses.','4 websites.','<em>1 designer.</em>'],t,.15)}</div>`);
+  else {const k=fadeIn(t,T0+i*SEG+(i===0?2.7:.15));text(`<div style="opacity:${k};transform:translateY(${(1-k)*20}px)"><div class="pill">${s.label}</div><div class="line">${s.line}</div></div>`);}
+ }
+ // grid of all four
+ if(t>=tGrid&&t<tEnd+.5){
+  $('swipe').style.opacity=0;const g=E(C(t,tGrid,tGrid+.8));
+  const cells=[[200,615],[576,615],[200,1262],[576,1262]], gs=.72;   // 2x2 grid of phones
+  FEED.forEach((s,j)=>{const d=PH[j];const [cx,cy]=cells[j];
+   if(j===0) place(d,L(big.x,cx,g),L(big.y,cy,g),L(big.s,gs,g));
+   else place(d,cx,cy+80*(1-g),gs,g);
+   const c=CLIPS[s.clip];phoneClip(d,'.va',s.clip,c.feed+((t-tGrid)%SEG));});
+  glow('#7a5cff');
+  const k=fadeIn(t,tGrid+.3);text(`<div style="opacity:${k}"><div class="head" style="font-size:76px">Every one built to <em>sell</em>,<br>not just sit there.</div></div>`);
+ }
+ if(t>=tEnd){endCard(t,tEnd);}
+ return total;
+}
+
+/* ---------- concept 3: Your website has 3 seconds ---------- */
+const THREE=[
+ {clip:'food',dev:'desk',key:'hero',label:'Food brand',line:'Click → the <b>whole page</b> changes'},
+ {clip:'careers',dev:'desk',key:'sweep',label:'Careers platform',line:'Hover → the brochure reveals <b>the real room</b>'},
+ {clip:'faith',dev:'desk',key:'sweep',label:'Faith organisation',line:'Every card <b>answers</b> your cursor'},
+ {clip:'ecom',dev:'mob',key:'feed',label:'E-commerce store',line:'Tap → <b>new design</b>, instantly'}];
+function three(t){
+ const tA=2.9, SEG=3.4, tMine=tA+SEG*THREE.length, tEnd=tMine+2.6, total=tEnd+3.6;
+ const lap={x:(1080-1520*.66)/2,y:800,s:.66}, W=LAP.querySelector('.wire');
+ if(t<tA){ // dead grey site + countdown
+  place(LAP,lap.x,lap.y+50*(1-OUT(C(t,0,.5))),lap.s,OUT(C(t,0,.3)));W.style.opacity=1;
+  const n=t<.95?3:t<1.9?2:1;const cnt=W.querySelector('.count');cnt.textContent=n;const k=((t%0.95)/0.95);cnt.style.transform=`scale(${1.15-.15*OUT(Math.min(1,k*4))})`;
+  lapClip('food',CLIPS.food.hero);glow('#555b66');
+  text(`<div class="head" style="font-size:80px">${headWords(['Your website has','<em>3 seconds</em> to make','someone stay.'],t,.1,.22)}</div>`);
+  $('flash').style.opacity=C(t,tA-.15,tA);
+  return total;}
+ W.style.opacity=0;$('flash').style.opacity=1-C(t,tA,tA+.35);
+ if(t<tMine){
+  const i=Math.floor((t-tA)/SEG), lt=t-tA-i*SEG, s=THREE[i], c=CLIPS[s.clip];glow(GLOW[s.clip]);
+  if(s.dev==='desk'){place(LAP,lap.x,lap.y,lap.s,1);hide(PH[0]);lapClip(s.clip,c[s.key]+lt);}
+  else{const k=OUT(C(lt,0,.4));place(LAP,lap.x-900*k,lap.y,lap.s,1-k);place(PH[0],(1080-422*1.45)/2,620+120*(1-k),1.45,k);phoneClip(PH[0],'.va',s.clip,c.feed+lt);}
+  const k=fadeIn(lt,.1);text(`<div style="opacity:${k};transform:translateY(${(1-k)*20}px)"><div class="pill">${s.label}</div><div class="line">${s.line}</div></div>`);
+  return total;}
+ if(t<tEnd){const k=OUT(C(t,tMine,tMine+.4));hide(LAP);place(PH[0],(1080-422*1.45)/2,620,1.45,1-k);phoneClip(PH[0],'.va','ecom',CLIPS.ecom.feed+SEG);
+  text('');slam('Mine don’t<br>waste them.',t,tMine,tEnd);glow('#ffd84d');return total;}
+ slam('',t,0,0);endCard(t,tEnd);return total;
+}
+
+/* ---------- concept 5: Whatever you sell ---------- */
+const SELL=[
+ {word:'Food?',clip:'food',key:'hero',label:'Food brand'},
+ {word:'Faith?',clip:'faith',key:'sweep',label:'Faith organisation'},
+ {word:'Careers?',clip:'careers',key:'sweep',label:'Careers platform'},
+ {word:'Baby<br>products?',clip:'ecom',key:'feed',label:'E-commerce store'}];
+function sell(t){
+ const SL=.75, SH=2.75, B=SL+SH, tNext=B*SELL.length, tEnd=tNext+1.9, total=tEnd+3.6;
+ if(t<tNext){
+  const i=Math.floor(t/B), lt=t-i*B, s=SELL[i], c=CLIPS[s.clip];glow(GLOW[s.clip]);
+  if(lt<SL){hide(LAP);hide(PH[0]);text('');slam(s.word,t,i*B,i*B+SL);return total;}
+  slam('',t,0,0);const st=lt-SL, k=OUT(C(st,0,.35));
+  place(LAP,(1080-1520*.64)/2,560+40*(1-k),.64,1);place(PH[0],560,1000+60*(1-k),.95,1);
+  lapClip(s.clip,c[s.key]+st);phoneClip(PH[0],'.va',s.clip,(s.key==='hero'?c.hero:c.feed)+st);
+  text(`<div style="opacity:${k}"><div class="pill">${s.label}</div><div class="head" style="font-size:96px">${s.word.replace('<br>',' ')}</div></div>`);
+  return total;}
+ if(t<tEnd){hide(LAP);hide(PH[0]);text('');glow('#ffd84d');slam('Your business<br><span style="color:#ffd84d">next.</span>',t,tNext,tEnd);return total;}
+ slam('',t,0,0);endCard(t,tEnd);return total;
+}
+
+const CONCEPTS={feed,three,sell};
+window.duration=()=>{resetSlots();const d=CONCEPTS[CONCEPT](0);jobs.length=0;return d;};
+window.drawFrame=async t=>{resetSlots();CONCEPTS[CONCEPT](t);await flush();};
+</script></body></html>
