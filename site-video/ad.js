@@ -6,7 +6,7 @@
 // Each clip folder holds desk.webm, mob.webm and clip.json. AD_CLIPS below says which folder plays which
 // role and where in each clip its signature moment starts.
 const { chromium } = require('playwright');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -24,6 +24,13 @@ const AD_CLIPS = {
 };
 if (args.offsets) Object.assign(AD_CLIPS, JSON.parse(fs.readFileSync(args.offsets, 'utf8')));
 
+// Cloud sandboxes re-sign HTTPS with their own CA (needed here for the Google Fonts download). Trust that CA's key only.
+function browserArgs() {
+  const ca = '/root/.ccr/agent-proxy-ca.crt';
+  if (!fs.existsSync(ca)) return [];
+  return ['--ignore-certificate-errors-spki-list=' + execSync(`openssl x509 -in ${ca} -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64`).toString().trim()];
+}
+
 function ffmpegPath() {
   if (process.env.FFMPEG) return process.env.FFMPEG;
   try { return require('ffmpeg-static'); } catch (e) { return 'ffmpeg'; }
@@ -35,10 +42,11 @@ function ffmpegPath() {
     const j = JSON.parse(fs.readFileSync(path.join(DIR, c.dir, 'clip.json'), 'utf8'));
     clips[role] = { ...c, base: 'file://' + path.join(DIR, c.dir) + '/', fps: j.fps, frames: j.frames, meta: j.meta };
   }
-  const b = await chromium.launch({ channel: 'chromium', args: ['--allow-file-access-from-files', '--autoplay-policy=no-user-gesture-required'] });
+  const b = await chromium.launch({ channel: 'chromium', args: ['--allow-file-access-from-files', '--autoplay-policy=no-user-gesture-required', ...browserArgs()] });
   const p = await b.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
   await p.goto('file://' + path.join(__dirname, 'ad.html') + '?concept=' + CONCEPT, { waitUntil: 'load' });
   await p.evaluate(() => document.fonts.ready);
+  if (!(await p.evaluate(() => [...document.fonts].some(f => f.status === 'loaded')))) console.warn('warning: caption font did not load, falling back to system font');
   await p.evaluate(c => { window.CLIPS = c; }, clips);
   const T = await p.evaluate(() => duration());
   console.log(`ad ${CONCEPT} | ${T.toFixed(1)}s`);

@@ -113,7 +113,7 @@ function headWords(lines,t,t0,step=.32){ // pop words in one by one
   return `<span class="w" style="opacity:${k};transform:translateY(${(1-k)*40}px) scale(${.9+.1*k})">${w}</span>`;}).join(' ')).join('<br>');}
 const fadeIn=(t,t0,d=.35)=>OUT(C(t,t0,t0+d));
 function slam(word,t,t0,t1){const s=$('slam');if(t<t0||t>=t1){s.style.opacity=0;return;}
- const k=OUT(C(t,t0,t0+.22));s.style.opacity=1;s.innerHTML=word;s.style.transform=`scale(${1.35-.35*k})`;}
+ const k=OUT(C(t,t0,t0+.22));s.style.opacity=1;s.innerHTML=`<div>${word}</div>`;s.style.transform=`scale(${1.35-.35*k})`;}
 function glow(c){document.documentElement.style.setProperty('--g',c);}
 function endCard(t,t0){const e=$('end');const k=E(C(t,t0,t0+.45));e.style.opacity=k;
  [['.by',.15],['.name',.3],['.cta',.55]].forEach(([q,d])=>{const el=e.querySelector(q);const v=E(C(t,t0+d,t0+d+.5));el.style.opacity=v;el.style.transform=`translateY(${40*(1-v)}px)`;});
@@ -145,10 +145,12 @@ function feed(t){
  if(t>=tGrid&&t<tEnd+.5){
   $('swipe').style.opacity=0;const g=E(C(t,tGrid,tGrid+.8));
   const cells=[[200,615],[576,615],[200,1262],[576,1262]], gs=.72;   // 2x2 grid of phones
-  FEED.forEach((s,j)=>{const d=PH[j];const [cx,cy]=cells[j];
+  // the big phone keeps playing the last site while it shrinks into the first cell
+  const order=[FEED[nS-1],...FEED.slice(0,nS-1)];
+  order.forEach((s,j)=>{const d=PH[j];const [cx,cy]=cells[j];
    if(j===0) place(d,L(big.x,cx,g),L(big.y,cy,g),L(big.s,gs,g));
    else place(d,cx,cy+80*(1-g),gs,g);
-   const c=CLIPS[s.clip];phoneClip(d,'.va',s.clip,c.feed+((t-tGrid)%SEG));});
+   const c=CLIPS[s.clip];phoneClip(d,'.va',s.clip,c.feed+(j===0?SEG:0)+((t-tGrid)%SEG));});
   glow('#7a5cff');
   const k=fadeIn(t,tGrid+.3);text(`<div style="opacity:${k}"><div class="head" style="font-size:76px">Every one built to <em>sell</em>,<br>not just sit there.</div></div>`);
  }
