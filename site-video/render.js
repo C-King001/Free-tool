@@ -68,7 +68,7 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   // so touch-only effects (e.g. "scroll and the image changes") play on the phone exactly as they do on a real phone.
   const desk = await (await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 })).newPage();
   const iphone = devices['iPhone 13'];
-  const mob = LAYOUTS.every(L => L === 'laptop') ? null : await (await b.newContext({
+  const mob = LAYOUTS.every(L => L === 'laptop') && !args.clips ? null : await (await b.newContext({
     userAgent: iphone.userAgent, viewport: { width: 390, height: 794 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
   })).newPage();
 
