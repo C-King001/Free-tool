@@ -17,10 +17,10 @@ const OUT = path.resolve(args.out || `output/ad_${CONCEPT}.mp4`);
 
 // role -> folder, plus moment offsets in seconds: feed = phone moment, hero = click moment, sweep = cursor hover moment
 const AD_CLIPS = {
-  food:    { dir: 'food',      feed: 3.9, hero: 3.9, sweep: 11.3 },
-  careers: { dir: 'careers',   feed: 4.8, sweep: 9.2 },
-  faith:   { dir: 'nonprofit', feed: 3.3, sweep: 9.9 },
-  ecom:    { dir: 'ecom',      feed: 5.3, hero: 5.3 },
+  food:    { dir: 'food',      feed: 4.2, hero: 4.2, sweep: 11.3 },
+  careers: { dir: 'careers',   feed: 4.6, sweep: 9.3 },
+  faith:   { dir: 'nonprofit', feed: 3.6, sweep: 9.8 },
+  ecom:    { dir: 'ecom',      feed: 5.4, hero: 5.4 },
 };
 if (args.offsets) Object.assign(AD_CLIPS, JSON.parse(fs.readFileSync(args.offsets, 'utf8')));
 

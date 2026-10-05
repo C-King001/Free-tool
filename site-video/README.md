@@ -100,6 +100,29 @@ Moms and More (~50s with end card). The cursor switches the design picker (Pink 
 
 Tip: the best `--stops` are the top of each section, minus a little room for the site's header.
 
+## TikTok portfolio ads
+
+Three 1080×1920 ads that show several sites in one video, built from short clips of each site:
+
+- `feed`: "4 businesses. 4 websites. 1 designer." The phone swipes between sites like a TikTok feed, then shows all four in a grid.
+- `three`: "Your website has 3 seconds to make someone stay." A grey dead page counts down, then comes alive with each site's best interaction.
+- `sell`: "Food?", "Faith?", "Careers?", "Baby products?" Each word cuts to that industry's site, ending on "Your business next."
+
+All three end on the "Designed & built by Faithful" card and label sites by industry only.
+
+1. Film a clip per site. `--clips` saves raw desktop and phone footage, plus cursor and tap positions:
+   ```bash
+   node render.js --url https://meji-eight.vercel.app --layout wide --pace 1.15 --hold 1.1 --endcard none \
+     --stops "0:5.5,1950:2.6" --click "0:#tab-spicy,#tab-original" --sweep 1950 --until 14.5 --clips clips/food
+   ```
+   The ads expect four folders: `food`, `careers`, `nonprofit` and `ecom`.
+2. Set where each clip's moment starts in `AD_CLIPS` at the top of `ad.js`.
+3. Compose:
+   ```bash
+   node ad.js --concept feed --clips clips --out output/tiktok_feed.mp4
+   ```
+   Add `--stills 1,5,10` to preview frames first. Captions and timing live in `ad.html`.
+
 ## Good to know
 
 - **Cookie banners** are dismissed automatically (it clicks "Reject"/"Necessary only" first, then "Accept"), and any leftover cookie popup is hidden.

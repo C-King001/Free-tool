@@ -128,7 +128,7 @@ const FEED=[
  {clip:'ecom',label:'E-commerce store',line:'Tap → <b>new design</b>, instantly'}];
 function feed(t){
  const SEG=3.9, SW=.45, T0=0, nS=FEED.length, tGrid=T0+SEG*nS, tEnd=tGrid+3.9, total=tEnd+3.6;
- const P=PH[0]; const big={x:(1080-422*1.62)/2,y:560,s:1.62};
+ const P=PH[0]; const big={x:(1080-422*1.5)/2,y:540,s:1.5};
  // phone feed
  if(t<tGrid+.01){
   place(P,big.x,big.y+60*(1-OUT(C(t,0,.5))),big.s,OUT(C(t,0,.3)));
@@ -179,8 +179,8 @@ function three(t){
   else{const k=OUT(C(lt,0,.4));place(LAP,lap.x-900*k,lap.y,lap.s,1-k);place(PH[0],(1080-422*1.45)/2,620+120*(1-k),1.45,k);phoneClip(PH[0],'.va',s.clip,c.feed+lt);}
   const k=fadeIn(lt,.1);text(`<div style="opacity:${k};transform:translateY(${(1-k)*20}px)"><div class="pill">${s.label}</div><div class="line">${s.line}</div></div>`);
   return total;}
- if(t<tEnd){const k=OUT(C(t,tMine,tMine+.4));hide(LAP);place(PH[0],(1080-422*1.45)/2,620,1.45,1-k);phoneClip(PH[0],'.va','ecom',CLIPS.ecom.feed+SEG);
-  text('');slam('Mine don’t<br>waste them.',t,tMine,tEnd);glow('#ffd84d');return total;}
+ if(t<tEnd){const k=OUT(C(t,tMine,tMine+.3));hide(LAP);place(PH[0],(1080-422*1.45)/2,620,1.45,1-k);phoneClip(PH[0],'.va','ecom',CLIPS.ecom.feed+SEG);
+  text('');slam('Mine don’t<br>waste them.',t,tMine+.3,tEnd);glow('#ffd84d');return total;}
  slam('',t,0,0);endCard(t,tEnd);return total;
 }
 
