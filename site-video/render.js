@@ -70,7 +70,8 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   const DESK_DPR = +(args.deskdpr || 1), MOB_DPR = +(args.mobdpr || 2);
   const desk = await (await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: DESK_DPR })).newPage();
   const iphone = devices['iPhone 13'];
-  const mob = LAYOUTS.every(L => L === 'laptop') && !args.clips ? null : await (await b.newContext({
+  // --nophone: desktop-only clips
+  const mob = (LAYOUTS.every(L => L === 'laptop') && !args.clips) || args.nophone ? null : await (await b.newContext({
     userAgent: iphone.userAgent, viewport: { width: 390, height: 794 }, deviceScaleFactor: MOB_DPR, isMobile: true, hasTouch: true,
   })).newPage();
 

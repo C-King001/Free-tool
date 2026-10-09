@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"><title>A/B post</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+/* "Which is better, A or B?" post: two desktop screens stacked, each with a round A/B badge.
+   ?format=feed -> 1080x1350 (Instagram 4:5), ?format=tall -> 1080x1920 (Reels/TikTok, question on top). */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;overflow:hidden;background:#ebebee;font-family:'Plus Jakarta Sans',sans-serif}
+.card{position:absolute;left:50%;background:#fff;border-radius:24px;padding:7px;box-shadow:0 10px 30px rgba(20,25,40,.10),0 1px 0 rgba(0,0,0,.04)}
+.card .vp{position:relative;overflow:hidden;border-radius:18px;background:#fff}
+.card video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.badge{position:absolute;left:50%;width:76px;height:76px;margin-left:-38px;border-radius:50%;background:#fff;color:#111;display:flex;align-items:center;justify-content:center;
+ font-size:38px;font-weight:800;box-shadow:0 6px 18px rgba(20,25,40,.14);z-index:3}
+.cursor{position:absolute;left:0;top:0;width:30px;height:30px;margin:-2px 0 0 -3px;opacity:0;z-index:2;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+#q{position:absolute;left:0;right:0;top:120px;text-align:center;color:#111;display:none}
+#q .t{font-size:84px;font-weight:800;letter-spacing:-2.5px;line-height:1}
+#q .s{margin-top:18px;font-size:34px;font-weight:600;color:#5b6070}
+</style></head><body>
+<div id="q"><div class="t">Which is better?</div><div class="s">Comment <b style="color:#111">A</b> or <b style="color:#111">B</b></div></div>
+<script>
+const Q=new URLSearchParams(location.search),FORMAT=Q.get('format')||'feed';
+const H=FORMAT==='tall'?1920:1350;document.documentElement.style.height=document.body.style.height=H+'px';
+// card geometry: width W, 16:10 screen inside a 7px white frame
+const W=FORMAT==='tall'?1000:940, VW=W-14, VH=Math.round(VW*900/1440), CH=VH+14;
+const top0=FORMAT==='tall'?420:78, gap=FORMAT==='tall'?120:66;
+const cards=['A','B'].map((L,i)=>{const y=top0+i*(CH+gap);
+ const c=document.createElement('div');c.className='card';c.style.width=W+'px';c.style.marginLeft=(-W/2)+'px';c.style.top=y+'px';
+ c.innerHTML=`<div class="vp" style="width:${VW}px;height:${VH}px"><video muted playsinline preload="auto"></video><svg class="cursor" viewBox="0 0 24 24"><path d="M3 2l7.5 19 2.6-7.4L20.5 11z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div>`;
+ document.body.appendChild(c);
+ const b=document.createElement('div');b.className='badge';b.textContent=L;b.style.top=(y-46)+'px';document.body.appendChild(b);
+ return c;});
+if(FORMAT==='tall') document.getElementById('q').style.display='block';
+// window.AB = {a:{base,fps,frames,meta}, b:{...}} injected by ab.js
+async function seek(v,src,t){
+ if(v.dataset.src!==src){v.dataset.src=src;v.src=src;await new Promise(r=>{v.addEventListener('loadeddata',r,{once:true});setTimeout(r,8000);});}
+ const tt=Math.max(0,Math.min(t,v.duration-0.02||t));
+ if(Math.abs(v.currentTime-tt)>1e-3){v.currentTime=tt;await new Promise(r=>{v.addEventListener('seeked',r,{once:true});setTimeout(r,3000);});}}
+window.drawFrame=async t=>{
+ await Promise.all(['a','b'].map(async (k,i)=>{const c=AB[k],v=cards[i].querySelector('video');
+  const f=Math.min(c.frames-1,Math.round(t*c.fps));await seek(v,c.base+'desk.webm',f/c.fps);
+  const m=c.meta[f],cur=cards[i].querySelector('.cursor'),p=m&&m[0];
+  if(p){cur.style.opacity=p[2];cur.style.transform=`translate(${p[0]*VW/1440}px,${p[1]*VH/900}px) scale(${p[3]?.82:1})`;}else cur.style.opacity=0;}));
+};
+window.height=H;
+</script></body></html>
