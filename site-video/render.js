@@ -66,10 +66,12 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
   // The site is filmed in two real browsers: a desktop one, and an emulated iPhone (touch, mobile UA, retina),
   // so touch-only effects (e.g. "scroll and the image changes") play on the phone exactly as they do on a real phone.
-  const desk = await (await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 })).newPage();
+  // --deskdpr / --mobdpr film at higher pixel density (sharper close-ups in ads); layout and timing are unchanged.
+  const DESK_DPR = +(args.deskdpr || 1), MOB_DPR = +(args.mobdpr || 2);
+  const desk = await (await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: DESK_DPR })).newPage();
   const iphone = devices['iPhone 13'];
   const mob = LAYOUTS.every(L => L === 'laptop') && !args.clips ? null : await (await b.newContext({
-    userAgent: iphone.userAgent, viewport: { width: 390, height: 794 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true,
+    userAgent: iphone.userAgent, viewport: { width: 390, height: 794 }, deviceScaleFactor: MOB_DPR, isMobile: true, hasTouch: true,
   })).newPage();
 
   // Open-source Chromium can't decode H.264, the codec most site videos use, so they would never play.
@@ -310,7 +312,7 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     // cursor and tap position for every frame and the pause schedule.
     const dir = String(args.clips); fs.mkdirSync(dir, { recursive: true });
     const enc = (file, fps) => spawn(findFfmpeg(), ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-i', '-',
-      '-c:v', 'libvpx-vp9', '-crf', '18', '-b:v', '0', '-g', '1', '-deadline', 'good', '-cpu-used', '4', '-row-mt', '1', '-pix_fmt', 'yuv420p', path.join(dir, file)], { stdio: ['pipe', 'inherit', 'inherit'] });
+      '-c:v', 'libvpx-vp9', '-crf', '20', '-b:v', '0', '-g', '1', '-deadline', 'good', '-cpu-used', '5', '-row-mt', '1', '-pix_fmt', 'yuv420p', path.join(dir, file)], { stdio: ['pipe', 'inherit', 'inherit'] });
     const ed = enc('desk.webm', FPS), em = mob && enc('mob.webm', FPS), meta = [];
     const N = Math.round(Math.min(T, +(args.until || T)) * FPS); let last = Date.now();
     const put = async (e, buf) => { if (!e.stdin.write(buf)) await new Promise(r => e.stdin.once('drain', r)); };
