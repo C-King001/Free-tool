@@ -280,11 +280,34 @@ const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   });
   await Promise.all([desk, mob].filter(Boolean).map(installVideoStepper));
 
+  // Pop-up guard: sites often open a newsletter/offer modal after N seconds or on scroll. Filming takes far longer
+  // than real time, so those fire early. Before every screenshot, any full-screen overlay that has a close/"no thanks"
+  // button is dismissed (so the site remembers) and hidden at once, and the page's scroll lock is released.
+  const installPopupGuard = pg => pg.evaluate(() => {
+    window.__popguard = () => {
+      const W = innerWidth, H = innerHeight;
+      const cands = document.querySelectorAll('[role=dialog],[aria-modal=true],dialog[open],body > *,body > * > *,[class*=fixed],[class*=modal],[class*=popup],[class*=overlay]');
+      for (const el of cands) {
+        if (el.__popHidden) continue;
+        const cs = getComputedStyle(el); if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden') continue;
+        const r = el.getBoundingClientRect(); if (r.width < W * .8 || r.height < H * .8) continue;   // full-screen overlays only
+        const btns = [...el.querySelectorAll('button,a,[role=button]')];
+        const close = btns.find(b => /^(no thanks|not now|close|dismiss|maybe later|×|✕|x)$/i.test(((b.getAttribute('aria-label') || '') + ' ' + b.textContent).trim().split(/\s{2,}/)[0].trim()) || /close|dismiss/i.test(b.getAttribute('aria-label') || ''));
+        if (!close && !el.matches('[role=dialog],[aria-modal=true],dialog')) continue;
+        try { close && close.click(); } catch (e) {}
+        el.style.setProperty('display', 'none', 'important'); el.__popHidden = true;
+        for (const s of [document.documentElement.style, document.body.style]) { s.removeProperty('overflow'); }
+      }
+    };
+  });
+  await Promise.all([desk, mob].filter(Boolean).map(installPopupGuard));
+
   const filmSite = async (tt, dt) => {
     await interact(tt);
     const sy = scrollAt(tt);
     await Promise.all([desk.evaluate(y => scrollTo(0, y), Math.round(sy)), mob && mob.evaluate(y => scrollTo(0, y), Math.round(mapY(sy)))]);
     await Promise.all([desk.evaluate(dt => __vstep(dt), dt), mob && mob.evaluate(dt => __vstep(dt), dt)]);
+    await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
     await Promise.all([desk.evaluate(painted), mob && mob.evaluate(painted)]);
     const [d, m] = await Promise.all([desk.screenshot({ type: 'jpeg', quality: 92 }), mob ? mob.screenshot({ type: 'jpeg', quality: 92 }) : null]);
     return [d, m, cursor, tap];
