@@ -322,7 +322,18 @@ async function launchChromium(chromium, args) {
     await Promise.all([desk.evaluate(dt => __vstep(dt), dt), mob && mob.evaluate(dt => __vstep(dt), dt)]);
     await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
     await Promise.all([desk.evaluate(painted), mob && mob.evaluate(painted)]);
-    const [d, m] = await Promise.all([desk.screenshot({ type: 'jpeg', quality: 92 }), mob ? mob.screenshot({ type: 'jpeg', quality: 92 }) : null]);
+    // A heavy page (many videos/canvases) can occasionally stall one screenshot; retry before giving up.
+    const shot = async (pg, name) => {
+      for (let a = 0; ; a++) {
+        try { return await pg.screenshot({ type: 'jpeg', quality: 92, timeout: 45000 }); }
+        catch (e) {
+          if (a >= 2) throw e;
+          console.warn(`\n  ${name} screenshot stalled at ${tt.toFixed(2)}s (y=${Math.round(sy)}), retrying`);
+          await pg.evaluate(() => new Promise(r => setTimeout(r, 50))).catch(() => {});
+        }
+      }
+    };
+    const [d, m] = await Promise.all([shot(desk, 'laptop'), mob ? shot(mob, 'phone') : null]);
     return [d, m, cursor, tap];
   };
   const compose = async (scene, tt, shots) => {
