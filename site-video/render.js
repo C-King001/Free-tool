@@ -61,8 +61,19 @@ function browserArgs() {
 
 const E = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
+// Launch Playwright's Chromium; if that build isn't installed, fall back to a system Chromium
+// (CHROMIUM_PATH, or the one preinstalled in cloud sandboxes).
+async function launchChromium(chromium, args) {
+  try { return await chromium.launch({ channel: 'chromium', args }); }
+  catch (e) {
+    const p = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
+    if (!require('fs').existsSync(p)) throw e;
+    return chromium.launch({ executablePath: p, args });
+  }
+}
+
 (async () => {
-  const b = await chromium.launch({ channel: 'chromium', args: browserArgs() });
+  const b = await launchChromium(chromium, browserArgs());
 
   // The site is filmed in two real browsers: a desktop one, and an emulated iPhone (touch, mobile UA, retina),
   // so touch-only effects (e.g. "scroll and the image changes") play on the phone exactly as they do on a real phone.

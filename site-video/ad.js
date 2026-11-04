@@ -36,13 +36,24 @@ function ffmpegPath() {
   try { return require('ffmpeg-static'); } catch (e) { return 'ffmpeg'; }
 }
 
+// Launch Playwright's Chromium; if that build isn't installed, fall back to a system Chromium
+// (CHROMIUM_PATH, or the one preinstalled in cloud sandboxes).
+async function launchChromium(chromium, args) {
+  try { return await chromium.launch({ channel: 'chromium', args }); }
+  catch (e) {
+    const p = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium';
+    if (!require('fs').existsSync(p)) throw e;
+    return chromium.launch({ executablePath: p, args });
+  }
+}
+
 (async () => {
   const clips = {};
   for (const [role, c] of Object.entries(AD_CLIPS)) {
     const j = JSON.parse(fs.readFileSync(path.join(DIR, c.dir, 'clip.json'), 'utf8'));
     clips[role] = { ...c, base: 'file://' + path.join(DIR, c.dir) + '/', fps: j.fps, frames: j.frames, meta: j.meta };
   }
-  const b = await chromium.launch({ channel: 'chromium', args: ['--allow-file-access-from-files', '--autoplay-policy=no-user-gesture-required', ...browserArgs()] });
+  const b = await launchChromium(chromium, ['--allow-file-access-from-files', '--autoplay-policy=no-user-gesture-required', ...browserArgs()]);
   const p = await b.newPage({ viewport: { width: 1080, height: 1920 }, deviceScaleFactor: 1 });
   await p.goto('file://' + path.join(__dirname, 'ad.html') + '?concept=' + CONCEPT, { waitUntil: 'load' });
   await p.evaluate(() => document.fonts.ready);
