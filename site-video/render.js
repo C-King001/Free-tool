@@ -148,7 +148,9 @@ async function launchChromium(chromium, args) {
     await dismissCookies(pg); await pg.waitForTimeout(800);
     const H0 = await pg.evaluate(() => document.documentElement.scrollHeight - innerHeight);
     for (let y = 0; y <= H0; y += 300) { await pg.evaluate(y => scrollTo(0, y), y); await pg.waitForTimeout(120); }
-    await pg.reload({ waitUntil: 'load' }); await settle(pg);
+    // Back to the top before reloading, and no scroll restoration, so scroll-driven stories start at the beginning.
+    await pg.evaluate(() => { history.scrollRestoration = 'manual'; scrollTo(0, 0); }); await pg.waitForTimeout(400);
+    await pg.reload({ waitUntil: 'load' }); await pg.evaluate(() => { history.scrollRestoration = 'manual'; scrollTo(0, 0); }); await settle(pg);
     await dismissCookies(pg); await pg.waitForTimeout(500); await hideLeftovers(pg);
     await pg.evaluate(() => scrollTo(0, 0)); await pg.waitForTimeout(500);
     return Math.max(0, await pg.evaluate(() => document.documentElement.scrollHeight - innerHeight));
