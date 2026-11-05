@@ -285,6 +285,7 @@ async function launchChromium(chromium, args) {
     window.__vstep = async dt => {
       for (const v of document.querySelectorAll('video')) {
         if (!v.paused) { v.pause(); v.__ctl = true; }      // keep control even if the site starts it playing again
+        if (window.__holdVideo && window.__holdVideo.test(v.currentSrc || '')) continue;   // --hold-video: keep this one still
         if (!v.__ctl || v.readyState < 2 || !v.duration) continue;
         const r = v.getBoundingClientRect();
         if (r.bottom < 0 || r.top > innerHeight) continue;          // off screen: leave it paused
@@ -295,6 +296,9 @@ async function launchChromium(chromium, args) {
     };
   });
   await Promise.all([desk, mob].filter(Boolean).map(installVideoStepper));
+  // --hold-video "r-ring": videos whose URL contains this are paused on their current frame instead of stepped
+  // (for videos too heavy to decode frame by frame in a software browser).
+  if (args['hold-video']) await Promise.all([desk, mob].filter(Boolean).map(pg => pg.evaluate(s => { window.__holdVideo = new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); }, String(args['hold-video']))));
 
   // Pop-up guard: sites often open a newsletter/offer modal after N seconds or on scroll. Filming takes far longer
   // than real time, so those fire early. Before every screenshot, any full-screen overlay that has a close/"no thanks"
