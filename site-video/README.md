@@ -98,6 +98,14 @@ Moms and More (~50s with end card). The cursor switches the design picker (Pink 
 ./render-all.sh https://momsandmore.com.ng --tint "#f5a524,#ef7a12" --accent "#ef7a12" --stops "1050:5.2,2000:2.4,2750,3480:1.6,4400,5050,5680,6260,7020:3.6,8520:3.6" --click "1050:text=Pink Butterfly,text=Panda,text=Bear;7020:text=Increase quantity,text=Increase quantity;8520:text=Is it heavy?,text=Can I wash it?" --sweep 2000 --pace 1.15 --hold 1.1
 ```
 
+Moodring (~70s, a long scroll-driven story). It steps through the hero's day (6:52, 9:58, 3:17…), taps the life-event chips so the number turns into a story, switches the ring finish, flips the phone mock-up's tabs, dismisses the "Enjoying her story?" card if it appears, and taps the "feel like yourself" chips:
+
+```bash
+./render-all.sh https://moodring-five.vercel.app/ --caption "Moodring" --tint "#a2481c,#f4c48f" --accent "#b5541c" --pace 1.0 --hold 1.0 \
+  --stops "900,1800,2700,3600,4500,5400,6300,7450,8600:3.6,9750:3.2,12300,13100,14100,14900,15700:3.4,16700,17700:4.2,18800,21600,24150,25300" \
+  --click "8600:text=worked late,text=skipped meals,text=was on my period;9750:text=Mother-of-pearl,text=Gold;15700:text=When you're drained,text=A joy you forgot;17700:[aria-label=Dismiss],text=a long walk,text=sunlight"
+```
+
 Tip: the best `--stops` are the top of each section, minus a little room for the site's header.
 
 ## TikTok portfolio ads
