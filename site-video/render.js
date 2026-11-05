@@ -327,6 +327,7 @@ async function launchChromium(chromium, args) {
   await Promise.all([desk, mob].filter(Boolean).map(installPopupGuard));
 
   const lastShot = {}, stuck = { laptop: 0, phone: 0 };
+  const NO_POPGUARD = !!(args['no-popup-guard'] || process.env.SV_NO_POPGUARD);   // --no-popup-guard
   const NATIVE_MOB_VIDEO = !!(args['phone-video-native'] || process.env.SV_NATIVE_MOB_VIDEO);
   const DBG = process.env.SV_DEBUG ? (msg) => console.log(`[${new Date().toISOString().slice(11, 23)}] ${msg}`) : () => {};
   const filmSite = async (tt, dt) => {
@@ -335,7 +336,7 @@ async function launchChromium(chromium, args) {
     DBG(`scroll desk=${Math.round(sy)} mob=${mob ? Math.round(mapY(sy)) : '-'}`); await Promise.all([desk.evaluate(y => scrollTo(0, y), Math.round(sy)), mob && mob.evaluate(y => scrollTo(0, y), Math.round(mapY(sy)))]);
     // --phone-video-native: leave the phone's videos to the site instead of frame-stepping them.
     DBG('vstep'); await Promise.all([desk.evaluate(dt => __vstep(dt), dt), mob && !NATIVE_MOB_VIDEO && mob.evaluate(dt => __vstep(dt), dt)]);
-    DBG('popguard'); await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
+    DBG('popguard'); if (!NO_POPGUARD) await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
     DBG('painted'); await Promise.all([desk.evaluate(painted), mob && mob.evaluate(painted)]);
     DBG('screenshot');
     // A heavy page (many videos/canvases) can occasionally stall a screenshot. Retry once; if it still stalls,
@@ -402,7 +403,7 @@ async function launchChromium(chromium, args) {
     const tt = i / FPS; await interact(tt); const sy = scrollAt(tt); pendingVideo += 1 / FPS;
     await Promise.all([desk.evaluate(y => scrollTo(0, y), Math.round(sy)), mob && mob.evaluate(y => scrollTo(0, y), Math.round(mapY(sy)))]);
     if (i % 30 === 29) { await Promise.all([desk.evaluate(dt => __vstep(dt), pendingVideo), mob && !NATIVE_MOB_VIDEO && mob.evaluate(dt => __vstep(dt), pendingVideo)]); pendingVideo = 0; }
-    await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
+    if (!NO_POPGUARD) await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
     if (i % 6 === 0) await desk.waitForTimeout(15);
     if (i % (FPS * 5) === 0) process.stdout.write(`\r  fast-forward ${(tt).toFixed(0)}s/${(F0 / FPS).toFixed(0)}s`);
   }
