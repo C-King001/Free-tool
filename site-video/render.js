@@ -323,12 +323,14 @@ async function launchChromium(chromium, args) {
   await Promise.all([desk, mob].filter(Boolean).map(installPopupGuard));
 
   const lastShot = {}, stuck = { laptop: 0, phone: 0 };
+  const NATIVE_MOB_VIDEO = !!(args['phone-video-native'] || process.env.SV_NATIVE_MOB_VIDEO);
   const DBG = process.env.SV_DEBUG ? (msg) => console.log(`[${new Date().toISOString().slice(11, 23)}] ${msg}`) : () => {};
   const filmSite = async (tt, dt) => {
     DBG(`t=${tt.toFixed(3)} interact`); await interact(tt);
     const sy = scrollAt(tt);
     DBG(`scroll desk=${Math.round(sy)} mob=${mob ? Math.round(mapY(sy)) : '-'}`); await Promise.all([desk.evaluate(y => scrollTo(0, y), Math.round(sy)), mob && mob.evaluate(y => scrollTo(0, y), Math.round(mapY(sy)))]);
-    DBG('vstep'); await Promise.all([desk.evaluate(dt => __vstep(dt), dt), mob && mob.evaluate(dt => __vstep(dt), dt)]);
+    // --phone-video-native: leave the phone's videos to the site instead of frame-stepping them.
+    DBG('vstep'); await Promise.all([desk.evaluate(dt => __vstep(dt), dt), mob && !NATIVE_MOB_VIDEO && mob.evaluate(dt => __vstep(dt), dt)]);
     DBG('popguard'); await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
     DBG('painted'); await Promise.all([desk.evaluate(painted), mob && mob.evaluate(painted)]);
     DBG('screenshot');
@@ -395,12 +397,12 @@ async function launchChromium(chromium, args) {
   for (let i = 0; i < F0; i++) {
     const tt = i / FPS; await interact(tt); const sy = scrollAt(tt); pendingVideo += 1 / FPS;
     await Promise.all([desk.evaluate(y => scrollTo(0, y), Math.round(sy)), mob && mob.evaluate(y => scrollTo(0, y), Math.round(mapY(sy)))]);
-    if (i % 30 === 29) { await Promise.all([desk.evaluate(dt => __vstep(dt), pendingVideo), mob && mob.evaluate(dt => __vstep(dt), pendingVideo)]); pendingVideo = 0; }
+    if (i % 30 === 29) { await Promise.all([desk.evaluate(dt => __vstep(dt), pendingVideo), mob && !NATIVE_MOB_VIDEO && mob.evaluate(dt => __vstep(dt), pendingVideo)]); pendingVideo = 0; }
     await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
     if (i % 6 === 0) await desk.waitForTimeout(15);
     if (i % (FPS * 5) === 0) process.stdout.write(`\r  fast-forward ${(tt).toFixed(0)}s/${(F0 / FPS).toFixed(0)}s`);
   }
-  if (F0) { if (pendingVideo) await Promise.all([desk.evaluate(dt => __vstep(dt), pendingVideo), mob && mob.evaluate(dt => __vstep(dt), pendingVideo)]); await desk.waitForTimeout(1500); last = Date.now(); }
+  if (F0) { if (pendingVideo) await Promise.all([desk.evaluate(dt => __vstep(dt), pendingVideo), mob && !NATIVE_MOB_VIDEO && mob.evaluate(dt => __vstep(dt), pendingVideo)]); await desk.waitForTimeout(1500); last = Date.now(); }
   for (let i = F0; i < N; i++) {
     const shots = await filmSite(i / FPS, 1 / FPS);
     for (let j = 0; j < scenes.length; j++) {
