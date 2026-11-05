@@ -73,7 +73,8 @@ async function launchChromium(chromium, args) {
 }
 
 (async () => {
-  const b = await launchChromium(chromium, browserArgs());
+  // SV_DISABLE_GPU / --nogpu: draw without the GPU process (its software GL can hit pathological cases on some pages).
+  const b = await launchChromium(chromium, [...browserArgs(), ...(process.env.SV_DISABLE_GPU || args.nogpu ? ['--disable-gpu', '--disable-gpu-compositing'] : [])]);
 
   // The site is filmed in two real browsers: a desktop one, and an emulated iPhone (touch, mobile UA, retina),
   // so touch-only effects (e.g. "scroll and the image changes") play on the phone exactly as they do on a real phone.
