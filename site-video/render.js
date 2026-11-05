@@ -160,7 +160,9 @@ async function launchChromium(chromium, args) {
   // Frames take longer to capture than they last on screen, so slow the sites' CSS animations and
   // transitions to match. Otherwise fades and reveals would look rushed in the video.
   const sessions = [];
-  for (const pg of [desk, mob].filter(Boolean)) { const s = await pg.context().newCDPSession(pg); await s.send('Animation.enable'); sessions.push(s); }
+  // No Animation.enable: setPlaybackRate works without it, and enabling it makes Chrome report every animation the
+  // site creates, which on animation-heavy pages floods the renderer and freezes filming.
+  for (const pg of [desk, mob].filter(Boolean)) { const s = await pg.context().newCDPSession(pg); sessions.push(s); }
   let rate = 1;
   const setRate = async r => { r = Math.max(.02, Math.min(1, r)); if (Math.abs(r - rate) / rate > .1) { rate = r; await Promise.all([...(process.env.SV_NO_CSSRATE ? [] : sessions.map(s => s.send('Animation.setPlaybackRate', { playbackRate: r }))), ...(process.env.SV_NO_TIMEWARP ? [] : [desk, mob].filter(Boolean).map(pg => pg.evaluate(r => window.__setTimeRate && __setTimeRate(r), r)))]); } };
 
