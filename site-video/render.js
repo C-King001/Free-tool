@@ -315,6 +315,7 @@ async function launchChromium(chromium, args) {
   });
   await Promise.all([desk, mob].filter(Boolean).map(installPopupGuard));
 
+  const lastShot = {}, stuck = { laptop: 0, phone: 0 };
   const filmSite = async (tt, dt) => {
     await interact(tt);
     const sy = scrollAt(tt);
@@ -322,16 +323,15 @@ async function launchChromium(chromium, args) {
     await Promise.all([desk.evaluate(dt => __vstep(dt), dt), mob && mob.evaluate(dt => __vstep(dt), dt)]);
     await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
     await Promise.all([desk.evaluate(painted), mob && mob.evaluate(painted)]);
-    // A heavy page (many videos/canvases) can occasionally stall one screenshot; retry before giving up.
+    // A heavy page (many videos/canvases) can occasionally stall a screenshot. Retry once; if it still stalls,
+    // reuse that screen's previous frame (invisible at 60fps) and carry on. Give up only if it stays stuck.
     const shot = async (pg, name) => {
-      for (let a = 0; ; a++) {
-        try { return await pg.screenshot({ type: 'jpeg', quality: 92, timeout: 45000 }); }
-        catch (e) {
-          if (a >= 2) throw e;
-          console.warn(`\n  ${name} screenshot stalled at ${tt.toFixed(2)}s (y=${Math.round(sy)}), retrying`);
-          await pg.evaluate(() => new Promise(r => setTimeout(r, 50))).catch(() => {});
-        }
+      for (let a = 0; a < 2; a++) {
+        try { const buf = await pg.screenshot({ type: 'jpeg', quality: 92, timeout: 15000 }); lastShot[name] = buf; stuck[name] = 0; return buf; }
+        catch (e) { console.warn(`\n  ${name} screenshot stalled at ${tt.toFixed(2)}s (y=${Math.round(sy)})${a ? '' : ', retrying'}`); }
       }
+      if (!lastShot[name] || ++stuck[name] > 60) throw new Error(`${name} screen stuck at ${tt.toFixed(2)}s`);
+      console.warn(`  ${name}: reused the previous frame`); return lastShot[name];
     };
     const [d, m] = await Promise.all([shot(desk, 'laptop'), mob ? shot(mob, 'phone') : null]);
     return [d, m, cursor, tap];
