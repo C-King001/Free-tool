@@ -380,7 +380,19 @@ async function launchChromium(chromium, args) {
   const encoders = scenes.map(sc => spawn(findFfmpeg(), ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', OUT(sc.L)], { stdio: ['pipe', 'inherit', 'inherit'] }));
   const N = Math.round(Math.min(T, +(args.until || T)) * FPS); let last = Date.now();   // --until 6: render only the first 6s (quick tests)
-  for (let i = 0; i < N; i++) {
+  // --from 20: start filming at 20s. The timeline before it is played through without filming (scrolls, clicks and
+  // site videos still happen), so long, heavy videos can be rendered in pieces with fresh browsers and joined.
+  const F0 = Math.round(+(args.from || 0) * FPS); let pendingVideo = 0;
+  for (let i = 0; i < F0; i++) {
+    const tt = i / FPS; await interact(tt); const sy = scrollAt(tt); pendingVideo += 1 / FPS;
+    await Promise.all([desk.evaluate(y => scrollTo(0, y), Math.round(sy)), mob && mob.evaluate(y => scrollTo(0, y), Math.round(mapY(sy)))]);
+    if (i % 30 === 29) { await Promise.all([desk.evaluate(dt => __vstep(dt), pendingVideo), mob && mob.evaluate(dt => __vstep(dt), pendingVideo)]); pendingVideo = 0; }
+    await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
+    if (i % 6 === 0) await desk.waitForTimeout(15);
+    if (i % (FPS * 5) === 0) process.stdout.write(`\r  fast-forward ${(tt).toFixed(0)}s/${(F0 / FPS).toFixed(0)}s`);
+  }
+  if (F0) { if (pendingVideo) await Promise.all([desk.evaluate(dt => __vstep(dt), pendingVideo), mob && mob.evaluate(dt => __vstep(dt), pendingVideo)]); await desk.waitForTimeout(1500); last = Date.now(); }
+  for (let i = F0; i < N; i++) {
     const shots = await filmSite(i / FPS, 1 / FPS);
     for (let j = 0; j < scenes.length; j++) {
       const buf = await compose(scenes[j], i / FPS, shots);
