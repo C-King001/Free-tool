@@ -162,7 +162,7 @@ async function launchChromium(chromium, args) {
   const sessions = [];
   for (const pg of [desk, mob].filter(Boolean)) { const s = await pg.context().newCDPSession(pg); await s.send('Animation.enable'); sessions.push(s); }
   let rate = 1;
-  const setRate = async r => { r = Math.max(.02, Math.min(1, r)); if (Math.abs(r - rate) / rate > .1) { rate = r; await Promise.all([...sessions.map(s => s.send('Animation.setPlaybackRate', { playbackRate: r })), ...(process.env.SV_NO_TIMEWARP ? [] : [desk, mob].filter(Boolean).map(pg => pg.evaluate(r => window.__setTimeRate && __setTimeRate(r), r)))]); } };
+  const setRate = async r => { r = Math.max(.02, Math.min(1, r)); if (Math.abs(r - rate) / rate > .1) { rate = r; await Promise.all([...(process.env.SV_NO_CSSRATE ? [] : sessions.map(s => s.send('Animation.setPlaybackRate', { playbackRate: r }))), ...(process.env.SV_NO_TIMEWARP ? [] : [desk, mob].filter(Boolean).map(pg => pg.evaluate(r => window.__setTimeRate && __setTimeRate(r), r)))]); } };
 
   // Sync the phone to the laptop section by section (falls back to proportional if the pages differ).
   const sectionTops = pg => pg.evaluate(() => [...document.querySelectorAll('body section, body footer')]
