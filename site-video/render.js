@@ -162,7 +162,7 @@ async function launchChromium(chromium, args) {
   const sessions = [];
   for (const pg of [desk, mob].filter(Boolean)) { const s = await pg.context().newCDPSession(pg); await s.send('Animation.enable'); sessions.push(s); }
   let rate = 1;
-  const setRate = async r => { r = Math.max(.02, Math.min(1, r)); if (Math.abs(r - rate) / rate > .1) { rate = r; await Promise.all([...sessions.map(s => s.send('Animation.setPlaybackRate', { playbackRate: r })), ...[desk, mob].filter(Boolean).map(pg => pg.evaluate(r => window.__setTimeRate && __setTimeRate(r), r))]); } };
+  const setRate = async r => { r = Math.max(.02, Math.min(1, r)); if (Math.abs(r - rate) / rate > .1) { rate = r; await Promise.all([...sessions.map(s => s.send('Animation.setPlaybackRate', { playbackRate: r })), ...(process.env.SV_NO_TIMEWARP ? [] : [desk, mob].filter(Boolean).map(pg => pg.evaluate(r => window.__setTimeRate && __setTimeRate(r), r)))]); } };
 
   // Sync the phone to the laptop section by section (falls back to proportional if the pages differ).
   const sectionTops = pg => pg.evaluate(() => [...document.querySelectorAll('body section, body footer')]
@@ -316,13 +316,15 @@ async function launchChromium(chromium, args) {
   await Promise.all([desk, mob].filter(Boolean).map(installPopupGuard));
 
   const lastShot = {}, stuck = { laptop: 0, phone: 0 };
+  const DBG = process.env.SV_DEBUG ? (msg) => console.log(`[${new Date().toISOString().slice(11, 23)}] ${msg}`) : () => {};
   const filmSite = async (tt, dt) => {
-    await interact(tt);
+    DBG(`t=${tt.toFixed(3)} interact`); await interact(tt);
     const sy = scrollAt(tt);
-    await Promise.all([desk.evaluate(y => scrollTo(0, y), Math.round(sy)), mob && mob.evaluate(y => scrollTo(0, y), Math.round(mapY(sy)))]);
-    await Promise.all([desk.evaluate(dt => __vstep(dt), dt), mob && mob.evaluate(dt => __vstep(dt), dt)]);
-    await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
-    await Promise.all([desk.evaluate(painted), mob && mob.evaluate(painted)]);
+    DBG(`scroll desk=${Math.round(sy)} mob=${mob ? Math.round(mapY(sy)) : '-'}`); await Promise.all([desk.evaluate(y => scrollTo(0, y), Math.round(sy)), mob && mob.evaluate(y => scrollTo(0, y), Math.round(mapY(sy)))]);
+    DBG('vstep'); await Promise.all([desk.evaluate(dt => __vstep(dt), dt), mob && mob.evaluate(dt => __vstep(dt), dt)]);
+    DBG('popguard'); await Promise.all([desk.evaluate(() => __popguard()), mob && mob.evaluate(() => __popguard())]);
+    DBG('painted'); await Promise.all([desk.evaluate(painted), mob && mob.evaluate(painted)]);
+    DBG('screenshot');
     // A heavy page (many videos/canvases) can occasionally stall a screenshot. Retry once; if it still stalls,
     // reuse that screen's previous frame (invisible at 60fps) and carry on. Give up only if it stays stuck.
     const shot = async (pg, name) => {
