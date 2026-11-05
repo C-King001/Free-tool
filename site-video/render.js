@@ -281,7 +281,7 @@ async function launchChromium(chromium, args) {
   const installVideoStepper = pg => pg.evaluate(() => {
     window.__vstep = async dt => {
       for (const v of document.querySelectorAll('video')) {
-        if (!v.paused && !v.__ctl) { v.pause(); v.__ctl = true; }
+        if (!v.paused) { v.pause(); v.__ctl = true; }      // keep control even if the site starts it playing again
         if (!v.__ctl || v.readyState < 2 || !v.duration) continue;
         const r = v.getBoundingClientRect();
         if (r.bottom < 0 || r.top > innerHeight) continue;          // off screen: leave it paused
