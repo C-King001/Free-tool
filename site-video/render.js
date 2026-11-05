@@ -74,7 +74,13 @@ async function launchChromium(chromium, args) {
 
 (async () => {
   // SV_DISABLE_GPU / --nogpu: draw without the GPU process (its software GL can hit pathological cases on some pages).
-  const b = await launchChromium(chromium, [...browserArgs(), ...(process.env.SV_DISABLE_GPU || args.nogpu ? ['--disable-gpu', '--disable-gpu-compositing'] : [])]);
+  const launchArgs = [...browserArgs(), ...(process.env.SV_DISABLE_GPU || args.nogpu ? ['--disable-gpu', '--disable-gpu-compositing'] : [])];
+  const b = await launchChromium(chromium, launchArgs);
+  // The phone gets its own browser (its own GPU process). Sharing one between both pages can stall on
+  // heavy pages (e.g. two video-stepping pages at once), freezing the render mid-scroll.
+  const needPhone = !((LAYOUTS.every(L => L === 'laptop') && !args.clips) || args.nophone);
+  const bm = needPhone && !args.sharebrowser ? await launchChromium(chromium, launchArgs) : b;
+  const closeAll = async () => { if (bm !== b) await bm.close(); await b.close(); };
 
   // The site is filmed in two real browsers: a desktop one, and an emulated iPhone (touch, mobile UA, retina),
   // so touch-only effects (e.g. "scroll and the image changes") play on the phone exactly as they do on a real phone.
@@ -83,7 +89,7 @@ async function launchChromium(chromium, args) {
   const desk = await (await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: DESK_DPR })).newPage();
   const iphone = devices['iPhone 13'];
   // --nophone: desktop-only clips
-  const mob = (LAYOUTS.every(L => L === 'laptop') && !args.clips) || args.nophone ? null : await (await b.newContext({
+  const mob = !needPhone ? null : await (await bm.newContext({
     userAgent: iphone.userAgent, viewport: { width: 390, height: 794 }, deviceScaleFactor: MOB_DPR, isMobile: true, hasTouch: true,
   })).newPage();
 
@@ -368,7 +374,7 @@ async function launchChromium(chromium, args) {
       const shots = await filmSite(tt, step);
       if (tt + 1e-9 >= want[k]) { for (const sc of scenes) { const fp = OUT(sc.L).replace(/\.mp4$/, `_${want[k]}s.jpg`); fs.writeFileSync(fp, await compose(sc, tt, shots)); console.log('wrote', fp); } k++; }
     }
-    await b.close(); return;
+    await closeAll(); return;
   }
   if (args.clips) {
     // Clip mode (raw footage for ads): saves what each browser filmed, with no mockup, as desk.webm and
@@ -391,7 +397,7 @@ async function launchChromium(chromium, args) {
     await Promise.all([ed, em].filter(Boolean).map(e => new Promise(r => e.on('close', r))));
     fs.writeFileSync(path.join(dir, 'clip.json'), JSON.stringify({ url: URL_, fps: FPS, frames: N,
       pauses: seg.filter(s => !s.ease).map(s => ({ y: Math.round(s.y0), t0: +s.t0.toFixed(2), t1: +s.t1.toFixed(2) })), meta }));
-    await b.close(); console.log(`\r  done -> ${dir}            `); return;
+    await closeAll(); console.log(`\r  done -> ${dir}            `); return;
   }
   const encoders = scenes.map(sc => spawn(findFfmpeg(), ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', OUT(sc.L)], { stdio: ['pipe', 'inherit', 'inherit'] }));
@@ -418,6 +424,6 @@ async function launchChromium(chromium, args) {
     if (i % (FPS * 2) === 0) process.stdout.write(`\r  frame ${i}/${N}`);
   }
   for (const e of encoders) e.stdin.end();
-  await Promise.all(encoders.map(e => new Promise(r => e.on('close', r)))); await b.close();
+  await Promise.all(encoders.map(e => new Promise(r => e.on('close', r)))); await closeAll();
   console.log(`\r  done -> ${scenes.map(sc => OUT(sc.L)).join(', ')}            `);
 })().catch(e => { console.error(e); process.exit(1); });
