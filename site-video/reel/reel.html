@@ -129,8 +129,8 @@ const A = n => `assets/${n}/`;
 const SITES = {
   meji:   { name: 'Meji Foods', kind: 'E-commerce', url: 'meji-eight.vercel.app', job: 'Turn an {appetite} into a {basket.}', bg: '#5B1708', fg: '#FFF6EC', acc: '#FF7A3D', m: [0, 3, 5, 6, 9], d: 0 },
   moodring:{ name: 'Moodring', kind: 'Product story', url: 'moodring-five.vercel.app', job: 'Fill a {waitlist} before the product ships.', bg: '#F3DCC4', fg: '#3A1A0E', acc: '#B5541C', m: [0, 1, 3, 8, 13], dseq: [1, 4, 8, 14], qacc: '#E58A4E' },
-  bibire: { name: 'BIBIRÉ', kind: 'E-commerce', url: 'bibire-six.vercel.app', job: 'Make a new label feel {established.}', bg: '#0F0F10', fg: '#F2F2F0', acc: '#C9D9C0', qacc: '#1E6B43', m: [0, 1, 2, 4, 6], d: 0 },
-  throne: { name: 'The Throneroom', kind: 'House of prayer', url: 'the-throneroom.vercel.app', job: 'Open a house of prayer to {every nation.}', bg: '#1B0E57', fg: '#FFFFFF', acc: '#E2B44A', qacc: '#B07D12', m: [5, 1, 9, 11, 15], d: 0 },
+  bibire: { name: 'BIBIRÉ', kind: 'E-commerce', url: 'bibire-six.vercel.app', job: 'Make a new label feel {established.}', bg: '#0F0F10', fg: '#F2F2F0', acc: '#C9D9C0', qacc: '#1E6B43', m: [0, 2, 4, 5, 7], d: 0 },
+  throne: { name: 'The Throneroom', kind: 'House of prayer', url: 'the-throneroom.vercel.app', job: 'Open a house of prayer to {every nation.}', bg: '#1B0E57', fg: '#FFFFFF', acc: '#E2B44A', qacc: '#B07D12', m: [0, 5, 9, 11, 15], d: 0 },
   crib:   { name: 'Crib', kind: 'Rental marketplace', url: 'getyourcrib.app', job: 'Make renters feel {safe} enough to book a viewing.', bg: '#0E1A3F', fg: '#FFFFFF', acc: '#5B8CFF', qacc: '#2C5CE0', m: [0, 4, 5, 9, 11], d: 0 },
   expertlinc:{ name: 'ExpertLinc', kind: 'Careers platform', url: 'expertlinc.com', job: 'Make a new idea feel {worth joining.}', bg: '#0B1F4D', fg: '#FFFFFF', acc: '#7FB2FF', qacc: '#2A5BD7', m: [0, 9, 13], d: 0 },
   moms:   { name: "Mom's Best Choice", kind: 'Product landing page', url: 'momsandmore.com.ng', job: 'Sell one product with {one clear action.}', bg: '#F49A1E', fg: '#2B1503', acc: '#FFFFFF', m: [0, 2, 15], d: 0 },
@@ -239,6 +239,7 @@ function listScene(root, D, head1, head2) {
   bg(root, '#0D0E12'); const m = mark(root, '#fff');
   const h1 = TX(root, head1, 'h', { left: '60px', top: '190px', width: '960px', fontSize: '100px', color: '#fff' });
   const h2 = TX(root, head2, 'h', { left: '60px', top: '190px', width: '960px', fontSize: '100px', color: '#fff' });
+  const ph2 = phone(root, 420); const p2 = el('img', null, ph2.scr); p2.src = 'assets/bibire/m_popup.jpg';
   const ph = phone(root, 540);
   const page = el('img', null, ph.scr); page.src = 'assets/taya/popup_m.webp'; css(page, { width: '100%', height: '100%', objectFit: 'cover' });
   // live form layer over the static popup image (email typed, button turns into a tick)
@@ -265,6 +266,7 @@ function listScene(root, D, head1, head2) {
     const p = E(t, .05, .7); const phx = (W - ph.W) / 2, phy = 620;
     const out = E(t, 2.1, 2.7, ioC);
     tf(ph.root, { x: phx - out * 140, y: lerp(H, phy, p) + out * 120, s: 1 - out * .12, r: -out * 6, o: 1 - out * .55 });
+    const p2p = E(t, .3, .95); tf(ph2.root, { x: 560 + out * 120, y: lerp(H + 200, 760, p2p), r: 9, o: (1 - out) * .95 });
     const n = typeIn(field, 'amara@email.com', t, .85, 20); if (n === 0) field.textContent = 'Your email', field.style.color = '#8b8580'; else field.style.color = '#2a2320';
     const done = t > 1.75; btn.textContent = done ? '✓  YOU’RE IN' : 'KEEP ME IN THE LOOP'; btn.style.background = done ? '#3a6b43' : '#26201d';
     const sx = ph.W / ph.w; // tap positions in stage px
