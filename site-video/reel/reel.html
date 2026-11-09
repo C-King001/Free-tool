@@ -142,7 +142,7 @@ const msrc = (n, k) => A(n) + 'm_' + pad(k) + '.jpg';
 // ───────────────────────── scene registry ─────────────────────────
 const scenes = [];
 function scene(t0, t1, build) { const root = el('div', 'scene', stage); const upd = build(root, t1 - t0); scenes.push({ t0, t1, root, upd }); }
-window.R = t => { for (const s of scenes) { const on = t >= s.t0 && t < s.t1; s.root.style.display = on ? 'block' : 'none'; if (on) s.upd(t - s.t0, t); } };
+window.R = t => { for (const s of scenes) { const on = t >= s.t0 && t < s.t1 + .6;   // stay a little longer so the next scene's wipe reveals over it s.root.style.display = on ? 'block' : 'none'; if (on) s.upd(t - s.t0, t); } };
 
 // ───────────────────────── shared scenes ─────────────────────────
 // Brand mark (top left), present in most scenes
@@ -387,7 +387,7 @@ function storyOneJob() {
     return t => {
       rise(top, t, 0); rise(big, t, .15, { st: .1 });
       const rem = cl(3 - (t - .6) / 1.0, 0, 3); arc.setAttribute('stroke-dashoffset', 2859 * (1 - rem / 3));
-      num.textContent = String(t < .6 ? 3 : Math.ceil(rem));
+      num.textContent = String(t < .6 ? 3 : Math.ceil(rem)); big.words[1].textContent = num.textContent === '1' ? 'second.' : 'seconds.';
       const pin = E(t, 0, .6); const dead = E(t, 3.55, 4.1, ioC);
       tf(ph.root, { x: php.x, y: lerp(H, php.y, pin) - dead * 1400, r: dead * -8, o: 1 });
       tf(ring, { o: 1 - E(t, 3.5, 3.7), s: 1 });

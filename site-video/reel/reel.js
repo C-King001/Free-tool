@@ -40,6 +40,7 @@ async function launch(a) { try { return await chromium.launch({ channel: 'chromi
 
   const T0 = +(args.from || 0), T1 = Math.min(S.duration, +(args.until || S.duration));
   const silent = OUT.replace(/\.mp4$/, '.silent.mp4');
+  if (!args.muxonly) {
   const ff = spawn(ffmpeg(), ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '16', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', silent], { stdio: ['pipe', 'inherit', 'inherit'] });
   const N0 = Math.round(T0 * FPS), N1 = Math.round(T1 * FPS); const start = Date.now();
@@ -49,7 +50,8 @@ async function launch(a) { try { return await chromium.launch({ channel: 'chromi
     if (!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r));
     if (i % FPS === 0) process.stdout.write(`\r  ${(i / FPS).toFixed(0)}s / ${T1.toFixed(0)}s  (${((Date.now() - start) / 1000).toFixed(0)}s elapsed)`);
   }
-  ff.stdin.end(); await new Promise(r => ff.on('close', r)); await b.close();
+  ff.stdin.end(); await new Promise(r => ff.on('close', r)); }
+  await b.close();
 
   // Audio: music trimmed from its offset with fades, plus each sound effect at its cue time.
   const A = path.join(__dirname, 'assets', 'audio'); const m = S.music; const dur = T1 - T0;
@@ -57,7 +59,7 @@ async function launch(a) { try { return await chromium.launch({ channel: 'chromi
   const cues = (S.cues || []).filter(c => c[0] >= T0 && c[0] < T1 && !args.nosfx);
   const filt = [`[1:a]volume=${m.gain || 1},afade=t=in:st=0:d=${T0 ? 0.05 : (m.fadeIn || 0.3)},afade=t=out:st=${Math.max(0, dur - (m.fadeOut || 1.5))}:d=${m.fadeOut || 1.5}[mu]`];
   cues.forEach((c, k) => { inputs.push('-i', path.join(A, 'sfx_' + c[1] + '.mp3'));
-    const ms = Math.round((c[0] - T0) * 1000); filt.push(`[${k + 2}:a]${c[3] ? `atrim=0:${c[3]},afade=t=out:st=${Math.max(0, c[3] - .15)}:d=.15,` : ''}volume=${c[2] || 0.5},adelay=${ms}|${ms}[s${k}]`); });
+    const ms = Math.round((c[0] - T0) * 1000); filt.push(`[${k + 2}:a]${c[3] ? `atrim=0:${c[3]},afade=t=out:st=${Math.max(0, c[3] - .15).toFixed(3)}:d=0.15,` : ''}volume=${c[2] || 0.5},adelay=${ms}|${ms}[s${k}]`); });
   filt.push(`[mu]${cues.map((c, k) => `[s${k}]`).join('')}amix=inputs=${cues.length + 1}:normalize=0:duration=first,alimiter=limit=0.95[a]`);
   execFileSync(ffmpeg(), ['-y', '-loglevel', 'error', ...inputs, '-filter_complex', filt.join(';'), '-map', '0:v', '-map', '[a]',
     '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', OUT]);
