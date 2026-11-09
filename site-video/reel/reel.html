@@ -1,0 +1,573 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Nexara reel</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Nexara Websites showreel, 1080x1920. Every frame is drawn by R(t) from the timeline below (no CSS animation),
+   so renders are deterministic. ?story=onejob | whatif */
+:root{--ink:#0D0E12;--blue:#2A2BFF;--cream:#FFF6EC;--rust:#6B1D0A;--mist:#E7EBEF;--white:#fff}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--ink)}
+#stage{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;background:var(--ink);font-family:'Instrument Sans',sans-serif;color:#fff}
+.scene{position:absolute;inset:0;overflow:hidden;display:none}
+.ab{position:absolute;left:0;top:0;transform-origin:50% 50%}
+.h{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;letter-spacing:-.028em;line-height:.96;font-variation-settings:'opsz' 96}
+.h2{font-family:'Bricolage Grotesque',sans-serif;font-weight:600;letter-spacing:-.018em;line-height:1.02;font-variation-settings:'opsz' 72}
+.lbl{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:24px;letter-spacing:.14em;text-transform:uppercase}
+.ui{font-family:'Instrument Sans',sans-serif}
+.w{display:inline-block;overflow:hidden;vertical-align:top;padding:.08em .03em .14em;margin:-.08em -.03em -.14em}
+.i{display:inline-block;will-change:transform}
+.a{color:var(--blue)}
+.pill{display:inline-flex;align-items:center;gap:14px;border-radius:999px;font-family:'Instrument Sans';font-weight:600;white-space:nowrap}
+/* phone */
+.phone{position:absolute;left:0;top:0;background:#0b0b0d;box-shadow:0 0 0 2px #2b2c31 inset,0 40px 90px rgba(0,0,0,.35),0 12px 30px rgba(0,0,0,.25)}
+.phone .scr{position:absolute;overflow:hidden;background:#111}
+.phone .scr img{position:absolute;left:0;top:0;width:100%;display:block}
+.phone .isl{position:absolute;left:50%;background:#000;border-radius:99px;transform:translateX(-50%);z-index:5}
+/* browser card */
+.brw{position:absolute;left:0;top:0;border-radius:22px;overflow:hidden;background:#fff;box-shadow:0 40px 90px rgba(0,0,0,.35)}
+.brw .bar{height:54px;background:#f1f2f4;display:flex;align-items:center;padding:0 20px;gap:10px}
+.brw .bar i{width:14px;height:14px;border-radius:50%;background:#d5d7dc;display:block}
+.brw .bar .u{margin-left:18px;flex:1;height:32px;border-radius:9px;background:#fff;font:500 17px 'Instrument Sans';color:#6b6f78;display:flex;align-items:center;padding-left:16px}
+.brw .vp{position:absolute;left:0;top:54px;right:0;bottom:0;overflow:hidden}
+.brw .vp img{position:absolute;left:0;top:0;width:100%}
+.grain{position:absolute;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:overlay;z-index:99;
+ background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.cursor{position:absolute;left:0;top:0;width:54px;height:54px;z-index:50;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+.tap{position:absolute;left:0;top:0;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;background:rgba(255,255,255,.55);border:3px solid rgba(255,255,255,.9);z-index:49}
+</style></head><body><div id="stage"></div>
+<script>
+// ───────────────────────── motion toolkit ─────────────────────────
+const W = 1080, H = 1920, stage = document.getElementById('stage');
+const Q = new URLSearchParams(location.search), STORYNAME = Q.get('story') || 'onejob';
+const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const pr = (t, a, b) => cl((t - a) / (b - a));
+const lerp = (a, b, p) => a + (b - a) * p;
+const oE = p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p);                 // out expo
+const oC = p => 1 - Math.pow(1 - p, 3);                                  // out cubic
+const iC = p => p * p * p;
+const ioC = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+const ioE = p => p <= 0 ? 0 : p >= 1 ? 1 : p < .5 ? Math.pow(2, 20 * p - 10) / 2 : (2 - Math.pow(2, -20 * p + 10)) / 2;
+const oB = (p, s = 1.6) => 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2);   // out back (overshoot)
+const spring = (p, f = 4.5, d = 6) => p <= 0 ? 0 : 1 - Math.exp(-d * p) * Math.cos(f * Math.PI * p);
+const E = (t, a, b, ease = oE) => ease(pr(t, a, b));
+function el(tag, cls, parent, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; (parent || stage).appendChild(e); return e; }
+function css(e, o) { Object.assign(e.style, o); return e; }
+// transform setter: x,y = position of the element's top-left; s scale, r rotation, o opacity, b blur(px)
+function tf(e, { x = 0, y = 0, s = 1, sx, sy, r = 0, o, b, rx = 0, ry = 0, z = 0 } = {}) {
+  e.style.transform = `translate3d(${x}px,${y}px,${z}px)${rx || ry ? ` perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg)` : ''} rotate(${r}deg) scale(${sx != null ? sx : s},${sy != null ? sy : s})`;
+  if (o != null) e.style.opacity = o;
+  if (b != null) e.style.filter = b > .05 ? `blur(${b}px)` : 'none';
+}
+// Text with word masks. {word} = accent (blue by default), | = line break.
+function TX(parent, text, cls, style, accent) {
+  const box = el('div', 'ab ' + (cls || ''), parent); css(box, style || {});
+  const words = [];
+  text.split('|').forEach((line, li) => {
+    if (li) el('br', null, box);
+    line.split(' ').filter(Boolean).forEach((w, wi, arr) => {
+      const acc = /^\{.*\}[.,?!]*$/.test(w) || /^\{/.test(w) && w.includes('}');
+      const clean = w.replace(/[{}]/g, '');
+      const m = el('span', 'w', box); const i = el('span', 'i', m, clean);
+      if (/\{/.test(w) || /\}/.test(w)) { i.style.color = accent || 'var(--blue)'; }
+      words.push(i); if (wi < arr.length - 1) box.appendChild(document.createTextNode(' '));
+    });
+  });
+  box.words = words; return box;
+}
+// word reveal: slide up from the mask, staggered
+function rise(box, t, t0, { st = .07, d = .55, from = 105, ease = oE, rot = 0 } = {}) {
+  box.words.forEach((w, k) => { const p = ease(pr(t, t0 + k * st, t0 + k * st + d)); w.style.transform = `translateY(${(1 - p) * from}%) rotate(${(1 - p) * rot}deg)`; });
+}
+function sink(box, t, t0, { st = .03, d = .35 } = {}) { // exit: words slide up out of the mask
+  if (t < t0) return; box.words.forEach((w, k) => { const p = iC(pr(t, t0 + k * st, t0 + k * st + d)); w.style.transform = `translateY(${-p * 110}%)`; });
+}
+// slam: words drop in scaled with blur (for big statements)
+function slam(box, t, t0, { st = .18, d = .4 } = {}) {
+  box.words.forEach((w, k) => { const p = pr(t, t0 + k * st, t0 + k * st + d); const e = oE(p);
+    w.style.transform = `scale(${lerp(1.9, 1, e)})`; w.style.opacity = p > 0 ? 1 : 0; w.style.filter = p < 1 ? `blur(${(1 - e) * 14}px)` : 'none'; });
+}
+function typeIn(e, full, t, t0, cps) { const n = Math.floor(cl((t - t0) * cps, 0, full.length)); e.textContent = full.slice(0, n); return n; }
+// phone frame: w = screen width
+function phone(parent, w) {
+  const h = Math.round(w * 2.164), bz = Math.round(w * .036), R0 = Math.round(w * .155);
+  const root = el('div', 'phone', parent); css(root, { width: w + 2 * bz + 'px', height: h + 2 * bz + 'px', borderRadius: R0 + 'px' });
+  const scr = el('div', 'scr', root); css(scr, { left: bz + 'px', top: bz + 'px', width: w + 'px', height: h + 'px', borderRadius: (R0 - bz) + 'px' });
+  const isl = el('div', 'isl', root); css(isl, { top: bz + w * .028 + 'px', width: w * .29 + 'px', height: w * .085 + 'px' });
+  return { root, scr, w, h, W: w + 2 * bz, H: h + 2 * bz, imgs: [] };
+}
+function shots(ph, srcs) { ph.imgs = srcs.map(s => { const i = el('img', null, ph.scr); i.src = s; return i; }); return ph; }
+// Show phone stills as a sequence, each pushing up from below (like a fast scroll). times = start time of each still.
+function seq(ph, t, times, { d = .42, ease = ioC } = {}) {
+  let k = 0; for (let j = 0; j < times.length; j++) if (t >= times[j]) k = j;
+  ph.imgs.forEach((im, j) => {
+    if (j === k) { const p = j === 0 ? 1 : ease(pr(t, times[j], times[j] + d)); im.style.transform = `translateY(${(1 - p) * ph.h}px)`; im.style.display = 'block'; im.style.zIndex = 2; im.style.filter = 'none'; }
+    else if (j === k - 1) { const p = ease(pr(t, times[k], times[k] + d)); im.style.transform = `translateY(${-p * ph.h * .35}px)`; im.style.display = p < 1 ? 'block' : 'none'; im.style.zIndex = 1; im.style.filter = `brightness(${1 - p * .5})`; }
+    else im.style.display = 'none';
+  });
+}
+// continuous scroll of a tall image (full page) inside a phone or browser viewport: y in screen px of the source
+function scrollImg(im, y) { im.style.transform = `translateY(${-y}px)`; }
+function browser(parent, w, h, url) {
+  const root = el('div', 'brw', parent); css(root, { width: w + 'px', height: h + 'px' });
+  const bar = el('div', 'bar', root, '<i></i><i></i><i></i><div class="u">' + url + '</div>');
+  const vp = el('div', 'vp', root); return { root, vp, w, h };
+}
+function bg(parent, color) { return css(el('div', 'ab', parent), { width: W + 'px', height: H + 'px', background: color }); }
+// cursor (arrow) and a tap ripple
+const ARROW = '<svg viewBox="0 0 24 24" width="54" height="54"><path d="M4 2.5l7.8 19.4 2.7-7.7 7.6-2.8z" fill="#111" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+function tapAt(e, t, t0, x, y) { const p = pr(t, t0, t0 + .45); css(e, { display: p > 0 && p < 1 ? 'block' : 'none' }); tf(e, { x, y, s: lerp(.3, 1.4, oC(p)), o: 1 - p }); }
+// clip-path wipes for scene entrances
+const wipe = {
+  circle: (root, p, cx = 540, cy = 960) => root.style.clipPath = p >= 1 ? 'none' : `circle(${p * 2300}px at ${cx}px ${cy}px)`,
+  up: (root, p) => root.style.clipPath = p >= 1 ? 'none' : `inset(${(1 - p) * 100}% 0 0 0)`,
+  left: (root, p) => root.style.clipPath = p >= 1 ? 'none' : `inset(0 0 0 ${(1 - p) * 100}%)`,
+  diag: (root, p) => { const a = lerp(-1200, 0, p); root.style.clipPath = p >= 1 ? 'none' : `polygon(${a}px 0, ${a + 2300}px 0, ${a + 1200}px 1920px, ${a - 1100}px 1920px)`; },
+  blinds: (bars, p) => bars.forEach((b, k) => { const q = ioC(cl(p * 1.6 - k * .12)); b.style.transform = `scaleY(${q})`; }),
+};
+
+// ───────────────────────── sites ─────────────────────────
+const A = n => `assets/${n}/`;
+const SITES = {
+  meji:   { name: 'Meji Foods', kind: 'E-commerce', url: 'meji-eight.vercel.app', job: 'Turn an {appetite} into a {basket.}', bg: '#5B1708', fg: '#FFF6EC', acc: '#FF7A3D', m: [0, 3, 5, 6, 9], d: 0 },
+  moodring:{ name: 'Moodring', kind: 'Product story', url: 'moodring-five.vercel.app', job: 'Fill a {waitlist} before the product ships.', bg: '#F3DCC4', fg: '#3A1A0E', acc: '#B5541C', m: [0, 1, 3, 8, 13], dseq: [1, 4, 8, 14], qacc: '#E58A4E' },
+  bibire: { name: 'BIBIRÉ', kind: 'E-commerce', url: 'bibire-six.vercel.app', job: 'Make a new label feel {established.}', bg: '#0F0F10', fg: '#F2F2F0', acc: '#C9D9C0', qacc: '#1E6B43', m: [0, 1, 2, 4, 6], d: 0 },
+  throne: { name: 'The Throneroom', kind: 'House of prayer', url: 'the-throneroom.vercel.app', job: 'Open a house of prayer to {every nation.}', bg: '#1B0E57', fg: '#FFFFFF', acc: '#E2B44A', qacc: '#B07D12', m: [5, 1, 9, 11, 15], d: 0 },
+  crib:   { name: 'Crib', kind: 'Rental marketplace', url: 'getyourcrib.app', job: 'Make renters feel {safe} enough to book a viewing.', bg: '#0E1A3F', fg: '#FFFFFF', acc: '#5B8CFF', qacc: '#2C5CE0', m: [0, 4, 5, 9, 11], d: 0 },
+  expertlinc:{ name: 'ExpertLinc', kind: 'Careers platform', url: 'expertlinc.com', job: 'Make a new idea feel {worth joining.}', bg: '#0B1F4D', fg: '#FFFFFF', acc: '#7FB2FF', qacc: '#2A5BD7', m: [0, 9, 13], d: 0 },
+  moms:   { name: "Mom's Best Choice", kind: 'Product landing page', url: 'momsandmore.com.ng', job: 'Sell one product with {one clear action.}', bg: '#F49A1E', fg: '#2B1503', acc: '#FFFFFF', m: [0, 2, 15], d: 0 },
+  wigpa:  { name: 'WIGPA', kind: 'Community', url: 'wigpa.org', job: 'Give a global community {a home.}', bg: '#6E1C24', fg: '#FFF6EC', acc: '#D7AE5E', qacc: '#A0701F', m: [0, 4, 9], d: 0 },
+};
+const pad = n => String(n).padStart(2, '0');
+const msrc = (n, k) => A(n) + 'm_' + pad(k) + '.jpg';
+
+// ───────────────────────── scene registry ─────────────────────────
+const scenes = [];
+function scene(t0, t1, build) { const root = el('div', 'scene', stage); const upd = build(root, t1 - t0); scenes.push({ t0, t1, root, upd }); }
+window.R = t => { for (const s of scenes) { const on = t >= s.t0 && t < s.t1; s.root.style.display = on ? 'block' : 'none'; if (on) s.upd(t - s.t0, t); } };
+
+// ───────────────────────── shared scenes ─────────────────────────
+// Brand mark (top left), present in most scenes
+function mark(parent, color, x = 64, y = 70) {
+  const m = el('div', 'ab', parent, `<span style="font:800 40px 'Bricolage Grotesque';letter-spacing:-.04em">Nexara</span><span style="font:500 22px 'JetBrains Mono';letter-spacing:.12em;margin-left:14px;opacity:.6">WEBSITES</span>`);
+  css(m, { color, left: x + 'px', top: y + 'px' }); return m;
+}
+
+// One site "job" card. variant changes the motion so no two sites move alike.
+function siteCard(root, key, D, variant, num, total) {
+  const S = SITES[key];
+  bg(root, S.bg);
+  const deco = el('div', 'ab', root);              // per-variant decoration layer (behind phone)
+  const label = TX(root, `${pad(num)} / ${pad(total)}  ·  ${S.kind}`, 'lbl', { left: '64px', top: '176px', color: S.fg, opacity: .7 });
+  const name = TX(root, S.name, 'h', { left: '60px', top: '226px', fontSize: '74px', color: S.fg });
+  const job = TX(root, S.job, 'h', { left: '60px', top: '330px', width: '960px', fontSize: '104px', color: S.fg }, S.acc);
+  const ph = phone(root, 470); shots(ph, S.m.map(k => msrc(key, k)));
+  const url = el('div', 'ab pill', root, `<span style="width:12px;height:12px;border-radius:50%;background:${S.acc};display:inline-block"></span>${S.url}`);
+  css(url, { left: '50%', top: '1806px', fontSize: '30px', color: S.fg, padding: '16px 30px', border: `2px solid ${S.fg}33` });
+  const m = mark(root, S.fg);
+  const px = (W - ph.W) / 2, py0 = 700;
+  // per-variant decoration
+  let decoUpd = () => {};
+  if (variant === 'clock') {        // Moodring: hour digits ticking behind the phone
+    const c = TX(deco, '6:52', 'h', { left: '0px', top: '820px', width: W + 'px', textAlign: 'center', fontSize: '420px', color: S.acc, opacity: .16 });
+    const hrs = ['6:52', '9:56', '3:17', '6:42', '11:44']; decoUpd = t => { c.words[0].textContent = hrs[Math.min(hrs.length - 1, Math.floor(t / .38))]; };
+  } else if (variant === 'giant') { // BIBIRÉ: giant wordmark sliding behind
+    const g = TX(deco, 'BIBIRÉ', 'h', { left: '0px', top: '1180px', fontSize: '360px', color: '#F2F2F0', opacity: .1, whiteSpace: 'nowrap', letterSpacing: '-.02em' });
+    decoUpd = t => tf(g, { x: lerp(200, -760, t / D) });
+  } else if (variant === 'rays') {  // Throneroom: rotating light rays
+    const r = el('div', 'ab', deco); css(r, { left: '-460px', top: '420px', width: '2000px', height: '2000px', borderRadius: '50%',
+      background: `repeating-conic-gradient(from 0deg, ${S.acc}22 0deg 6deg, transparent 6deg 18deg)`, maskImage: 'radial-gradient(circle, #000 20%, transparent 65%)', WebkitMaskImage: 'radial-gradient(circle, #000 20%, transparent 65%)' });
+    decoUpd = t => tf(r, { r: t * 14, o: E(t, 0, .8) });
+  } else if (variant === 'pins') {  // Crib: map pins dropping with a verified tick
+    const pins = [[150, 1000], [880, 900], [200, 1500], [900, 1420], [120, 1250]].map(([x, y]) => { const p = el('div', 'ab', deco,
+      `<svg width="90" height="120" viewBox="0 0 24 32"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20C24 5.4 18.6 0 12 0z" fill="${S.acc}"/><path d="M7 12.5l3.2 3.2L17 9" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>`); css(p, { left: x - 45 + 'px', top: y - 120 + 'px' }); return p; });
+    decoUpd = t => pins.forEach((p, k) => { const q = pr(t, .25 + k * .12, .75 + k * .12); tf(p, { y: (1 - spring(q, 2.5, 7)) * -260, o: q > 0 ? 1 : 0 }); });
+  } else if (variant === 'basket') { // Meji: price counter rolling into the basket
+    const tag = el('div', 'ab pill', deco, `<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M3 6h18l-2 12H5z"/><path d="M8 6a4 4 0 0 1 8 0"/></svg><span>Added · £12.99</span>`);
+    css(tag, { left: '600px', top: '1500px', fontSize: '34px', background: S.acc, color: '#fff', padding: '22px 34px', zIndex: 6 });
+    decoUpd = t => { const q = pr(t, .95, 1.35); tf(tag, { s: q > 0 ? oB(q) : 0, o: q > 0 ? 1 : 0, r: -4 }); };
+  }
+  const stillT = S.m.map((_, k) => .35 + k * Math.max(.3, (D - .7) / S.m.length));
+  return t => {
+    decoUpd(t);
+    rise(label, t, .05, { st: .02 }); rise(name, t, .1); rise(job, t, .18, { st: .06, d: .6 });
+    // phone entrance differs by variant
+    let ph_ = { x: px, y: py0 };
+    const p = pr(t, 0, .7);
+    if (variant === 'basket' || variant === 'pins') ph_ = { x: px, y: lerp(H, py0, oB(p, 1.2)), r: lerp(8, 0, oC(p)) };
+    else if (variant === 'clock') ph_ = { x: px, y: py0, s: lerp(.6, 1, oE(p)), o: oE(p) * 1 };
+    else if (variant === 'giant') ph_ = { x: lerp(W, px, oE(p)), y: py0, r: lerp(10, 0, oE(p)) };
+    else if (variant === 'rays') ph_ = { x: px, y: lerp(py0 + 300, py0, oE(p)), o: oE(p), b: (1 - oE(p)) * 20 };
+    tf(ph.root, { ...ph_, y: ph_.y - t * 18 });
+    seq(ph, t, stillT);
+    tf(url, { x: -url.offsetWidth / 2, y: 0, o: E(t, .5, .9) });
+  };
+}
+
+// Search + AI answer: SEO / GEO / AEO
+function findScene(root, D, head) {
+  bg(root, '#F3F4F7'); const m = mark(root, '#0D0E12');
+  const h = TX(root, head, 'h', { left: '60px', top: '200px', width: '960px', fontSize: '108px', color: '#0D0E12' });
+  // search card
+  const sc = el('div', 'ab', root); css(sc, { left: '60px', top: '560px', width: '960px', height: '560px', borderRadius: '36px', background: '#fff', boxShadow: '0 30px 80px rgba(20,24,40,.12)', overflow: 'hidden' });
+  const sb = el('div', 'ab', sc); css(sb, { left: '36px', top: '36px', width: '888px', height: '96px', borderRadius: '48px', border: '2px solid #E2E5EB', display: 'flex', alignItems: 'center', padding: '0 34px', gap: '22px' });
+  sb.innerHTML = `<svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#6b6f78" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span class="q" style="font:500 38px 'Instrument Sans';color:#0D0E12"></span><span class="car" style="width:3px;height:44px;background:#2A2BFF"></span>`;
+  const q = sb.querySelector('.q'), car = sb.querySelector('.car');
+  const res = [0, 1, 2].map(k => { const r = el('div', 'ab', sc); css(r, { left: '36px', top: 170 + k * 128 + 'px', width: '888px', height: '108px', borderRadius: '22px', padding: '18px 26px', background: k ? '#fff' : '#EEF0FF', border: k ? '2px solid #EEF0F3' : '2px solid #2A2BFF' });
+    r.innerHTML = k ? `<div style="width:${360 - k * 80}px;height:20px;border-radius:10px;background:#E7EAF0"></div><div style="margin-top:16px;width:${700 - k * 120}px;height:16px;border-radius:8px;background:#F0F2F5"></div>`
+      : `<div style="font:600 24px 'Instrument Sans';color:#2A2BFF">yourbrand.com</div><div style="font:700 34px 'Instrument Sans';color:#0D0E12;margin-top:6px">Your brand · exactly what they searched for</div>`; return r; });
+  // AI answer card
+  const ai = el('div', 'ab', root); css(ai, { left: '60px', top: '1160px', width: '960px', height: '400px', borderRadius: '36px', background: '#0D0E12', padding: '40px 46px', overflow: 'hidden' });
+  ai.innerHTML = `<div style="display:flex;align-items:center;gap:16px"><span style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#2A2BFF,#8C8DFF);display:inline-block"></span><span style="font:600 28px 'Instrument Sans';color:#fff">AI answer</span></div>
+   <div class="ans" style="margin-top:26px;font:500 38px/1.35 'Instrument Sans';color:#E7EBEF;height:210px"></div>
+   <div class="src pill" style="position:absolute;left:46px;bottom:34px;font-size:26px;padding:10px 22px;background:#2A2BFF;color:#fff">Source: yourbrand.com</div>`;
+  const ans = ai.querySelector('.ans'), src = ai.querySelector('.src');
+  const ANS = 'The best option near you is Your Brand. They deliver across the UK and answer every question on their site.';
+  const chips = ['SEO', 'GEO', 'AEO'].map((c, k) => { const e = el('div', 'ab pill', root, `<b style="font:800 40px 'Bricolage Grotesque'">${c}</b><span style="font-size:24px;opacity:.75">${['Found on Google', 'Cited by AI', 'Answer-ready'][k]}</span>`);
+    css(e, { left: 60 + k * 330 + 'px', top: '1630px', width: '300px', justifyContent: 'center', flexDirection: 'column', gap: '2px', padding: '22px 0', background: '#2A2BFF', color: '#fff', borderRadius: '28px' }); return e; });
+  return t => {
+    rise(h, t, 0, { st: .06 });
+    tf(sc, { y: lerp(120, 0, E(t, .1, .7)), o: E(t, .1, .5) });
+    typeIn(q, 'best brand near me', t, .45, 22); car.style.opacity = Math.floor(t * 3) % 2 ? .2 : 1;
+    res.forEach((r, k) => tf(r, { y: lerp(40, 0, E(t, 1.35 + k * .08, 1.8 + k * .08)), o: E(t, 1.35 + k * .08, 1.7 + k * .08) }));
+    tf(ai, { y: lerp(160, 0, E(t, 1.7, 2.3)), o: E(t, 1.7, 2.1) });
+    typeIn(ans, ANS, t, 2.1, 60); tf(src, { s: oB(pr(t, 3.0, 3.35)), o: E(t, 3.0, 3.1) });
+    chips.forEach((c, k) => tf(c, { y: lerp(80, 0, oB(pr(t, 3.2 + k * .12, 3.65 + k * .12))), o: E(t, 3.2 + k * .12, 3.35 + k * .12) }));
+  };
+}
+
+// Pop-up form -> signup -> automatic welcome email
+function listScene(root, D, head1, head2) {
+  bg(root, '#0D0E12'); const m = mark(root, '#fff');
+  const h1 = TX(root, head1, 'h', { left: '60px', top: '190px', width: '960px', fontSize: '100px', color: '#fff' });
+  const h2 = TX(root, head2, 'h', { left: '60px', top: '190px', width: '960px', fontSize: '100px', color: '#fff' });
+  const ph = phone(root, 540);
+  const page = el('img', null, ph.scr); page.src = 'assets/taya/popup_m.webp'; css(page, { width: '100%', height: '100%', objectFit: 'cover' });
+  // live form layer over the static popup image (email typed, button turns into a tick)
+  const k = ph.w / 780;
+  const field = el('div', null, ph.scr); css(field, { position: 'absolute', left: 50 * k + 'px', top: 1336 * k + 'px', width: 680 * k + 'px', height: 104 * k + 'px', background: '#fff', display: 'flex', alignItems: 'center', paddingLeft: 38 * k + 'px', font: `400 ${30 * k}px 'Instrument Sans'`, color: '#2a2320' });
+  const btn = el('div', null, ph.scr); css(btn, { position: 'absolute', left: 48 * k + 'px', top: 1462 * k + 'px', width: 684 * k + 'px', height: 102 * k + 'px', background: '#26201d', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', font: `600 ${22 * k}px 'Instrument Sans'`, letterSpacing: '.3em' });
+  btn.textContent = 'KEEP ME IN THE LOOP';
+  const tap = el('div', 'tap', root);
+  // notification + email
+  const nt = el('div', 'ab', root); css(nt, { left: '90px', top: '640px', width: '900px', borderRadius: '34px', background: 'rgba(250,247,241,.97)', padding: '26px 30px', display: 'flex', gap: '24px', alignItems: 'center', boxShadow: '0 30px 70px rgba(0,0,0,.4)', zIndex: 8 });
+  nt.innerHTML = `<div style="width:84px;height:84px;border-radius:20px;background:#26201d;color:#E8D9B5;display:flex;align-items:center;justify-content:center;font:500 30px 'Cormorant Garamond',serif;letter-spacing:.1em">T</div>
+   <div><div style="font:600 28px 'Instrument Sans';color:#1d1a18">TAYA <span style="font-weight:400;color:#8b8580;margin-left:10px">now</span></div><div style="font:500 30px 'Instrument Sans';color:#1d1a18">Welcome to the TAYA journey</div><div style="font:400 26px 'Instrument Sans';color:#6d6762">Some thoughts are worth keeping…</div></div>`;
+  const em = el('div', 'ab', root); css(em, { left: '170px', top: '800px', width: '740px', height: '980px', borderRadius: '30px', background: '#FAF7F1', overflow: 'hidden', boxShadow: '0 40px 90px rgba(0,0,0,.5)', zIndex: 7 });
+  em.innerHTML = `<div style="height:110px;display:flex;align-items:center;justify-content:center;font:500 40px Georgia,serif;letter-spacing:.5em;color:#26201d">TAYA</div>
+   <div style="height:380px;background:url(assets/taya/popup_m.webp) center 30%/cover"></div>
+   <div style="padding:40px 50px"><div style="font:600 20px 'Instrument Sans';letter-spacing:.3em;color:#a8833f">WELCOME</div>
+   <div style="margin-top:14px;font:400 54px/1.1 Georgia,serif;color:#1d1a18">Some thoughts are<br><i>worth keeping.</i></div>
+   <div style="margin-top:22px;font:400 26px/1.5 'Instrument Sans';color:#5b5550">Thanks for joining. Here's the story behind what we're building, and what's next.</div>
+   <div style="margin-top:30px;height:84px;background:#26201d;color:#fff;display:flex;align-items:center;justify-content:center;font:600 20px 'Instrument Sans';letter-spacing:.3em">READ THE STORY</div></div>`;
+  const auto = el('div', 'ab pill', root, `<span style="width:14px;height:14px;border-radius:50%;background:#3BE27A;display:inline-block"></span>Sent automatically`);
+  css(auto, { left: '300px', top: '1810px', fontSize: '30px', color: '#fff', padding: '14px 28px', background: '#ffffff14', zIndex: 9 });
+  return t => {
+    rise(h1, t, 0, { st: .06 }); if (t > 2.0) sink(h1, t, 2.0); h2.style.display = t > 2.25 ? 'block' : 'none'; rise(h2, t, 2.3, { st: .06 });
+    const p = E(t, .05, .7); const phx = (W - ph.W) / 2, phy = 620;
+    const out = E(t, 2.1, 2.7, ioC);
+    tf(ph.root, { x: phx - out * 140, y: lerp(H, phy, p) + out * 120, s: 1 - out * .12, r: -out * 6, o: 1 - out * .55 });
+    const n = typeIn(field, 'amara@email.com', t, .85, 20); if (n === 0) field.textContent = 'Your email', field.style.color = '#8b8580'; else field.style.color = '#2a2320';
+    const done = t > 1.75; btn.textContent = done ? '✓  YOU’RE IN' : 'KEEP ME IN THE LOOP'; btn.style.background = done ? '#3a6b43' : '#26201d';
+    const sx = ph.W / ph.w; // tap positions in stage px
+    const fx = phx + 36 + 390 * k, fy = phy + 20 + 1388 * k, bx = fx, by = phy + 20 + 1513 * k;
+    if (t < 1.3) tapAt(tap, t, .7, fx, fy); else tapAt(tap, t, 1.55, bx, by);
+    tf(nt, { y: lerp(-500, 0, oB(pr(t, 2.5, 2.95), 1.1)), o: E(t, 2.5, 2.6) });
+    tf(em, { y: lerp(1100, 0, E(t, 3.0, 3.6)), r: lerp(6, -2, E(t, 3.0, 3.6)), o: E(t, 3.0, 3.2) });
+    tf(auto, { y: lerp(40, 0, E(t, 3.5, 3.9)), o: E(t, 3.5, 3.7) });
+  };
+}
+
+// Free gift
+function giftScene(root, D, head, sub, color = '#2A2BFF') {
+  bg(root, '#FFF6EC'); const m = mark(root, '#0D0E12');
+  const glow = el('div', 'ab', root); css(glow, { left: '140px', top: '640px', width: '800px', height: '800px', borderRadius: '50%', background: `radial-gradient(circle, ${color}55, transparent 65%)` });
+  const box = el('div', 'ab', root); css(box, { left: '330px', top: '960px', width: '420px', height: '360px', borderRadius: '26px', background: color, boxShadow: '0 40px 80px rgba(42,43,255,.35)' });
+  el('div', 'ab', box).style.cssText = 'left:180px;top:0;width:60px;height:360px;background:#fff';
+  const lid = el('div', 'ab', root); css(lid, { left: '300px', top: '880px', width: '480px', height: '110px', borderRadius: '22px', background: color, boxShadow: '0 10px 30px rgba(0,0,0,.15)' });
+  el('div', 'ab', lid).style.cssText = 'left:210px;top:0;width:60px;height:110px;background:#fff';
+  const bow = el('div', 'ab', lid, `<svg width="240" height="130" viewBox="0 0 240 130"><path d="M120 120 C 60 120 10 90 30 50 C 50 10 100 60 120 120 C 140 60 190 10 210 50 C 230 90 180 120 120 120z" fill="#fff"/></svg>`); css(bow, { left: '120px', top: '-118px' });
+  const spark = [...Array(14)].map((_, k) => { const s = el('div', 'ab', root); css(s, { left: '540px', top: '940px', width: '18px', height: '18px', borderRadius: '50%', background: k % 2 ? color : '#FFB72B' }); return s; });
+  const h = TX(root, head, 'h', { left: '0', top: '230px', width: W + 'px', textAlign: 'center', fontSize: '128px', color: '#0D0E12' });
+  const s = TX(root, sub, 'h2', { left: '0', top: '1500px', width: W + 'px', textAlign: 'center', fontSize: '60px', color: '#0D0E12' });
+  return t => {
+    rise(h, t, .05, { st: .07 });
+    const dp = pr(t, 0, .6); tf(box, { y: lerp(-1300, 0, spring(dp, 2, 6)) }); tf(lid, { y: lerp(-1300, 0, spring(dp, 2, 6)) + (t > .9 ? -E(t, .9, 1.3, oB) * 150 : 0) + (t > .9 ? E(t, .9, 1.3) * -60 : 0), x: t > .9 ? E(t, .9, 1.3) * -90 : 0, r: t > .9 ? E(t, .9, 1.3) * -18 : 0 });
+    tf(glow, { s: .6 + E(t, .9, 1.5) * .6, o: E(t, .9, 1.3) });
+    spark.forEach((e, k) => { const a = k / spark.length * Math.PI * 2 - Math.PI / 2, q = E(t, .92, 1.6); tf(e, { x: Math.cos(a) * q * 460, y: Math.sin(a) * q * 360 - q * 80, o: q > 0 ? 1 - pr(t, 1.3, 1.8) : 0, s: 1 + q }); });
+    rise(s, t, 1.05, { st: .06 });
+  };
+}
+
+// CTA
+function ctaScene(root, D, head) {
+  bg(root, '#2A2BFF'); const m = mark(root, '#fff');
+  const h = TX(root, head, 'h', { left: '60px', top: '520px', width: '960px', fontSize: '150px', color: '#fff' }, '#0D0E12');
+  const b = el('div', 'ab pill', root, `Book a free call <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2A2BFF" stroke-width="2.6"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`);
+  css(b, { left: '60px', top: '1220px', fontSize: '54px', background: '#fff', color: '#2A2BFF', padding: '34px 56px' });
+  const u = TX(root, 'nexaraai.tech/websites', 'lbl', { left: '64px', top: '1420px', fontSize: '38px', color: '#fff', letterSpacing: '.04em', textTransform: 'none' });
+  const f = TX(root, 'Custom design · Built to convert · SEO, GEO & AEO · Email list & auto-replies', 'ui', { left: '64px', top: '1720px', width: '940px', fontSize: '30px', color: '#ffffffb0', lineHeight: '1.5' });
+  const cur = el('div', 'cursor', root, ARROW); const tap = el('div', 'tap', root);
+  return t => {
+    rise(h, t, .05, { st: .08, d: .6 });
+    const bp = pr(t, 1.1, 1.55); tf(b, { s: bp > 0 ? oB(bp) : 0, o: bp > 0 ? 1 : 0, y: 0 });
+    const press = t > 2.05 && t < 2.25; b.style.transform += press ? ' scale(.94)' : '';
+    const cp = E(t, 1.4, 2.0, ioC); tf(cur, { x: lerp(1100, 520, cp), y: lerp(1700, 1290, cp), o: cl((t - 1.4) * 5) * (1 - pr(t, 3.2, 3.5)) });
+    tapAt(tap, t, 2.05, 545, 1300);
+    rise(u, t, 2.3, { st: .02 }); rise(f, t, 2.6, { st: .015, d: .4 });
+  };
+}
+
+// grid of all sites: 3 columns of phones drifting in opposite directions, tilted
+function gridScene(root, D, head) {
+  bg(root, '#0D0E12');
+  const wall = el('div', 'ab', root); css(wall, { left: '-160px', top: '-200px', width: '1400px', height: '2400px' });
+  const keys = Object.keys(SITES); const cols = [[], [], []];
+  for (let c = 0; c < 3; c++) for (let r = 0; r < 4; r++) { const key = keys[(c * 3 + r) % keys.length];
+    const ph = phone(wall, 380); shots(ph, [msrc(key, SITES[key].m[(r + c) % SITES[key].m.length])]); ph.imgs[0].style.display = 'block';
+    css(ph.root, { left: 40 + c * 460 + 'px' }); cols[c].push(ph); }
+  const shade = el('div', 'ab', root); css(shade, { width: W + 'px', height: H + 'px', background: 'radial-gradient(ellipse at 50% 50%, rgba(13,14,18,.86) 22%, rgba(13,14,18,.55) 60%, rgba(13,14,18,.9) 100%)' });
+  const h = TX(root, head, 'h', { left: '40px', top: '740px', width: '1000px', fontSize: '140px', color: '#fff', textAlign: 'center' });
+  return t => {
+    tf(wall, { r: -12, s: lerp(1.15, 1, E(t, 0, D, oC)) });
+    cols.forEach((col, c) => col.forEach((ph, r) => { const dir = c === 1 ? -1 : 1; tf(ph.root, { y: r * 860 - 300 + dir * (t * 160) + (c === 1 ? -380 : 0) }); }));
+    rise(h, t, .2, { st: .08 });
+  };
+}
+
+// ───────────────────────── STORY 1: "one job" (problem → solution) ─────────────────────────
+function storyOneJob() {
+  const cues = [];
+  // 1 · hook: typed line, then struck through
+  scene(0, 2.75, (root) => {
+    bg(root, '#0D0E12');
+    const line = el('div', 'ab h', root); css(line, { left: '60px', top: '640px', width: '980px', fontSize: '136px', color: '#fff', whiteSpace: 'pre-line' });
+    const a = el('span', null, line), car = el('span', null, line); css(car, { display: 'inline-block', width: '10px', height: '112px', background: '#2A2BFF', marginLeft: '8px', verticalAlign: '-8px' });
+    const strike = el('div', 'ab', root); css(strike, { left: '60px', top: '0px', height: '14px', background: '#2A2BFF', transformOrigin: '0 50%' });
+    const L1 = "Most websites\ndon't fail\nfor being ugly.";
+    return t => {
+      const n = typeIn(a, L1, t, .25, 30); car.style.opacity = (n < L1.length || Math.floor(t * 3.5) % 2) ? 1 : 0;
+      // strike through "for being ugly." once typed
+      const range = document.createRange(); const node = a.firstChild;
+      if (node && n === L1.length) { const s = L1.indexOf('for being'); range.setStart(node, s); range.setEnd(node, L1.length);
+        const rects = [...range.getClientRects()]; const r = rects[rects.length - 1];
+        css(strike, { left: r.left - 10 + 'px', top: r.top + r.height * .52 + 'px', width: r.width + 20 + 'px' }); strike.style.transform = `scaleX(${E(t, 1.95, 2.3)})`; }
+      else strike.style.transform = 'scaleX(0)';
+      tf(line, { y: -E(t, 2.45, 2.75, iC) * 80, o: 1 - E(t, 2.5, 2.75) }); strike.style.opacity = 1 - E(t, 2.5, 2.75);
+    };
+  });
+  cues.push([.25, 'typing', .28, 1.4], [1.95, 'whoosh2', .35]);
+  // 2 · they fail because nobody decided what they're for
+  scene(2.75, 5.6, (root) => {
+    bg(root, '#0D0E12');
+    const a = TX(root, 'They fail because', 'h2', { left: '60px', top: '560px', fontSize: '76px', color: '#ffffff99' });
+    const b = TX(root, 'nobody decided|what they’re {for.}', 'h', { left: '60px', top: '680px', width: '980px', fontSize: '150px', color: '#fff' });
+    return t => { rise(a, t, 0, { st: .06 }); rise(b, t, .35, { st: .12, d: .5 }); const s = 1 + t * .02; tf(a, { s, y: 0 }); tf(b, { s, y: 0 });
+      if (t > 2.5) { sink(a, t, 2.5); sink(b, t, 2.55); } };
+  });
+  cues.push([3.1, 'pop', .3], [3.9, 'pop', .3]);
+  // 3 · pain: a visitor gives you 3 seconds; unanswered questions; gone
+  scene(5.6, 10.3, (root) => {
+    bg(root, '#E7EBEF');
+    const top = TX(root, 'A visitor gives you', 'h2', { left: '60px', top: '170px', fontSize: '70px', color: '#0D0E12' });
+    const big = TX(root, '{3} seconds.', 'h', { left: '60px', top: '250px', fontSize: '200px', color: '#0D0E12' });
+    // dead site (skeleton) in a phone
+    const ph = phone(root, 360); const scr = ph.scr; css(scr, { background: '#fff' });
+    scr.innerHTML = `<div style="height:110px;background:#f4f5f7;display:flex;align-items:center;padding:30px 30px 0;gap:12px"><div style="width:90px;height:22px;border-radius:6px;background:#d7dae0"></div><div style="flex:1"></div><div style="width:40px;height:22px;border-radius:6px;background:#d7dae0"></div></div>
+      <div style="margin:40px 34px 0;height:300px;border-radius:20px;background:#eceef2"></div>
+      <div style="margin:36px 34px 0;width:300px;height:30px;border-radius:8px;background:#dfe2e7"></div><div style="margin:18px 34px 0;width:380px;height:20px;border-radius:8px;background:#eceef2"></div><div style="margin:12px 34px 0;width:320px;height:20px;border-radius:8px;background:#eceef2"></div>
+      <div style="display:flex;gap:16px;margin:40px 34px 0"><div style="flex:1;height:190px;border-radius:16px;background:#eceef2"></div><div style="flex:1;height:190px;border-radius:16px;background:#eceef2"></div></div>`;
+    const ring = el('div', 'ab', root, `<svg width="940" height="940" viewBox="0 0 940 940"><circle cx="470" cy="470" r="455" stroke="#0D0E1214" stroke-width="16" fill="none"/><circle class="arc" cx="470" cy="470" r="455" stroke="#2A2BFF" stroke-width="16" fill="none" stroke-linecap="round" stroke-dasharray="2859" transform="rotate(-90 470 470)"/></svg>`);
+    css(ring, { left: '70px', top: '760px' }); const arc = ring.querySelector('.arc');
+    const num = big.words[0];
+    const qs = ['What is this?', 'Is it for me?', 'What do I do next?'].map((s, k) => { const e = el('div', 'ab pill', root, s); css(e, { fontSize: '40px', background: '#0D0E12', color: '#fff', padding: '24px 36px', zIndex: 4 }); return e; });
+    const QP = [[40, 820], [600, 1150], [60, 1560]];
+    const gone = TX(root, 'Gone.', 'h', { left: '0', top: '1180px', width: W + 'px', textAlign: 'center', fontSize: '300px', color: '#0D0E12' });
+    const php = { x: (W - ph.W) / 2, y: 1230 - ph.H / 2 };
+    return t => {
+      rise(top, t, 0); rise(big, t, .15, { st: .1 });
+      const rem = cl(3 - (t - .6) / 1.0, 0, 3); arc.setAttribute('stroke-dashoffset', 2859 * (1 - rem / 3));
+      num.textContent = String(t < .6 ? 3 : Math.ceil(rem));
+      const pin = E(t, 0, .6); const dead = E(t, 3.55, 4.1, ioC);
+      tf(ph.root, { x: php.x, y: lerp(H, php.y, pin) - dead * 1400, r: dead * -8, o: 1 });
+      tf(ring, { o: 1 - E(t, 3.5, 3.7), s: 1 });
+      qs.forEach((e, k) => { const q = pr(t, .9 + k * .75, 1.3 + k * .75); const wob = Math.sin((t - k) * 9) * 2 * (q >= 1 ? 1 : 0);
+        tf(e, { x: QP[k][0], y: QP[k][1], s: q > 0 ? oB(q) : 0, r: wob + (k - 1) * 3, o: 1 - E(t, 3.5, 3.75) }); });
+      gone.style.display = t > 3.75 ? 'block' : 'none'; slam(gone, t, 3.78, { d: .35 });
+    };
+  });
+  cues.push([6.5, 'pop2', .35], [7.25, 'pop2', .35], [8.0, 'pop2', .35], [9.15, 'whoosh', .5], [9.38, 'impact', .25]);
+  // 4 · every site we build starts here: the three questions, answered
+  scene(10.3, 12.75, (root) => {
+    bg(root, '#0D0E12'); mark(root, '#fff');
+    const h = TX(root, 'Every site we build|starts {here.}', 'h', { left: '60px', top: '330px', width: '980px', fontSize: '118px', color: '#fff' });
+    const items = ['What is this?', 'Is it for me?', 'What do I do next?'].map((s, k) => { const e = el('div', 'ab', root); css(e, { left: '60px', top: 760 + k * 220 + 'px', width: '960px', height: '180px', borderRadius: '30px', background: '#16181f', display: 'flex', alignItems: 'center', padding: '0 40px', gap: '34px' });
+      e.innerHTML = `<span class="lbl" style="color:#ffffff66;font-size:28px">0${k + 1}</span><span style="font:700 56px 'Bricolage Grotesque';letter-spacing:-.03em;color:#fff;flex:1">${s}</span><span class="ck" style="width:84px;height:84px;border-radius:50%;background:#2A2BFF;display:flex;align-items:center;justify-content:center"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>`; return e; });
+    return t => { rise(h, t, 0, { st: .07 });
+      items.forEach((e, k) => { tf(e, { x: lerp(-1100, 0, E(t, .35 + k * .12, .95 + k * .12)) }); const ck = e.querySelector('.ck'); const q = pr(t, 1.0 + k * .38, 1.35 + k * .38); ck.style.transform = `scale(${q > 0 ? oB(q, 2.2) : 0})`; }); };
+  });
+  cues.push([11.3, 'click', .45], [11.68, 'click', .45], [12.06, 'click', .45]);
+  // 5 · the question: what's this site's one job? (zoom into the blue)
+  scene(12.75, 15.5, (root) => {
+    bg(root, '#0D0E12');
+    const a = TX(root, 'One question first:', 'h2', { left: '60px', top: '600px', fontSize: '72px', color: '#ffffff99' });
+    const b = TX(root, 'What’s this site’s|{one job?}', 'h', { left: '60px', top: '720px', width: '980px', fontSize: '168px', color: '#fff' });
+    return t => { rise(a, t, 0, { st: .05 }); rise(b, t, .35, { st: .14, d: .55 });
+      const z = E(t, 2.15, 2.75, p => Math.pow(p, 3.2)); // zoom into the blue "o" of "one"
+      const o = b.words[3]; const r = o.getBoundingClientRect(); const ox = r.left + r.width * .16, oy = r.top + r.height * .55;
+      root.style.transformOrigin = `${ox}px ${oy}px`; root.style.transform = `scale(${1 + z * 60})`; };
+  });
+  cues.push([13.1, 'swoosh', .25], [14.6, 'whoosh', .4]);
+  // 6 · drop: Beautiful is the minimum.
+  scene(15.5, 17.45, (root) => {
+    bg(root, '#2A2BFF'); const m = mark(root, '#fff');
+    const h = TX(root, 'Beautiful|is the|minimum.', 'h', { left: '60px', top: '520px', width: '980px', fontSize: '210px', color: '#fff' });
+    const s = TX(root, 'We design and build websites around one job: getting the right person to {buy, book or join.}', 'h2', { left: '60px', top: '1340px', width: '940px', fontSize: '58px', color: '#ffffffcc' }, '#fff');
+    return t => { slam(h, t, 0, { st: .2, d: .38 }); rise(s, t, .7, { st: .025, d: .45 }); tf(h, { s: 1 + t * .015 }); };
+  });
+  cues.push([15.5, 'impact', .6], [15.9, 'pop', .25], [16.1, 'pop', .25]);
+  // 7 · the work: one job per site, each moving differently
+  const ORDER = [['meji', 'basket', 17.45, 19.4], ['moodring', 'clock', 19.4, 21.35], ['bibire', 'giant', 21.35, 23.4], ['throne', 'rays', 23.4, 25.5], ['crib', 'pins', 25.5, 27.2]];
+  const ENTR = ['up', 'circle', 'diag', 'circle', 'up'];
+  ORDER.forEach(([key, v, a, b], k) => scene(a, b, root => { const u = siteCard(root, key, b - a, v, k + 1, 8); return t => { const p = E(t, 0, .5, ioC);
+    if (ENTR[k] === 'circle') wipe.circle(root, p, 540, 1300); else if (ENTR[k] === 'diag') wipe.diag(root, p); else wipe.up(root, p); u(t); }; }));
+  ORDER.forEach(([, , a]) => cues.push([a, 'swoosh', .3]));
+  cues.push([18.4, 'ding', .3], [26.0, 'pop', .25], [26.15, 'pop', .25], [26.3, 'pop', .25]);
+  // 7b · three more, split screen
+  scene(27.2, 28.85, root => {
+    const keys = ['expertlinc', 'moms', 'wigpa'];
+    const cols = keys.map((key, c) => { const S = SITES[key]; const col = el('div', 'ab', root); css(col, { left: c * 360 + 'px', width: '360px', height: H + 'px', background: S.bg, overflow: 'hidden' });
+      const ph = phone(col, 290); shots(ph, [msrc(key, S.m[0]), msrc(key, S.m[1])]); css(ph.root, { left: (360 - ph.W) / 2 + 'px' });
+      const n = TX(col, S.name, 'h', { left: '28px', top: '200px', width: '320px', fontSize: '54px', color: S.fg });
+      const j = TX(col, S.job, 'h2', { left: '28px', top: '1560px', width: '310px', fontSize: '42px', color: S.fg }, S.acc);
+      return { col, ph, n, j, c }; });
+    return t => cols.forEach(({ col, ph, n, j, c }) => { const p = E(t, c * .1, .5 + c * .1, ioC); tf(col, { y: (1 - p) * (c % 2 ? -H : H) });
+      tf(ph.root, { y: 420 - t * 30 }); seq(ph, t, [0, .85 + c * .1]); rise(n, t, .25 + c * .1); rise(j, t, .4 + c * .1, { st: .04 }); });
+  });
+  cues.push([27.2, 'whoosh2', .35]);
+  // 8 · grid: eight sites, eight jobs
+  scene(28.85, 30.2, root => gridScene(root, 1.35, 'Eight sites.|Eight jobs.|{No two alike.}'));
+  // 9 · break: then make it work harder
+  scene(30.2, 31.3, root => { bg(root, '#0D0E12'); const h = TX(root, 'Then make it|{work harder.}', 'h', { left: '60px', top: '780px', width: '980px', fontSize: '150px', color: '#fff' });
+    return t => rise(h, t, 0, { st: .12, d: .5 }); });
+  cues.push([30.2, 'whoosh', .35]);
+  // 10 · found on Google, quoted by AI
+  scene(31.3, 35.2, root => { const u = findScene(root, 3.9, 'Found on Google.|{Quoted by AI.}'); return t => { wipe.left(root, E(t, 0, .45, ioC)); u(t); }; });
+  cues.push([31.75, 'typing', .22, .8], [32.65, 'pop', .3], [33.4, 'typing', .15, 1.3], [34.3, 'ding', .3], [34.5, 'pop2', .25], [34.62, 'pop2', .25], [34.74, 'pop2', .25]);
+  // 11 · pop-up → list → automatic welcome email
+  scene(35.2, 39.6, root => { const u = listScene(root, 4.4, 'Grow your|{email list.}', 'Every signup gets|a {welcome email.}'); return t => { wipe.up(root, E(t, 0, .45, ioC)); u(t); }; });
+  cues.push([35.9, 'click2', .5], [36.05, 'typing', .2, .7], [36.75, 'click', .5], [36.95, 'ding', .35], [37.7, 'notif', .5], [38.2, 'swoosh', .3]);
+  // 12 · free gift
+  scene(39.6, 41.75, root => giftScene(root, 2.15, 'Plus a|{free gift.}', 'You’ll find out on the call.'));
+  cues.push([39.75, 'pop2', .35], [40.5, 'sparkle', .45]);
+  // 13 · CTA
+  scene(41.75, 46.5, root => { const u = ctaScene(root, 4.75, 'What’s your|site’s {one job?}'); return t => { wipe.circle(root, E(t, 0, .55, ioC)); u(t); }; });
+  cues.push([41.75, 'whoosh', .35], [43.8, 'click', .55]);
+  return { duration: 46.5, music: { file: 'm371.mp3', offset: 14.12, gain: .9, fadeIn: .6, fadeOut: 1.8 }, cues };
+}
+
+// ───────────────────────── STORY 2: "what if" ─────────────────────────
+function storyWhatIf() {
+  const cues = [];
+  // 1 · What if your website did the selling?
+  scene(0, 2.75, root => {
+    bg(root, '#FFF6EC'); mark(root, '#0D0E12');
+    const a = TX(root, 'What if', 'h', { left: '60px', top: '520px', fontSize: '260px', color: '#0D0E12' });
+    const b = TX(root, 'your website|did the {selling?}', 'h', { left: '60px', top: '800px', width: '980px', fontSize: '150px', color: '#0D0E12' });
+    const n = el('div', 'ab', root); css(n, { left: '90px', top: '1340px', width: '900px', borderRadius: '34px', background: '#fff', padding: '28px 32px', display: 'flex', gap: '24px', alignItems: 'center', boxShadow: '0 30px 70px rgba(13,14,18,.15)' });
+    n.innerHTML = `<div style="width:84px;height:84px;border-radius:22px;background:#2A2BFF;display:flex;align-items:center;justify-content:center"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M3 6h18l-2 12H5z"/><path d="M8 6a4 4 0 0 1 8 0"/></svg></div><div><div style="font:600 28px 'Instrument Sans';color:#0D0E12">New order <span style="font-weight:400;color:#8b8f99;margin-left:10px">now</span></div><div style="font:500 34px 'Instrument Sans';color:#0D0E12">While you were asleep.</div></div>`;
+    return t => { slam(a, t, .1, { d: .35 }); rise(b, t, .55, { st: .1 }); tf(n, { y: lerp(400, 0, oB(pr(t, 1.6, 2.05), 1.2)), o: E(t, 1.6, 1.7) });
+      if (t > 2.45) { sink(a, t, 2.45); sink(b, t, 2.5); tf(n, { y: E(t, 2.45, 2.75, iC) * 600, o: 1 - E(t, 2.45, 2.7) }); } };
+  });
+  cues.push([.1, 'impact', .35], [1.6, 'ding', .4]);
+  // 2 · most websites just sit there: visitors come, visitors leave
+  scene(2.75, 5.5, root => {
+    bg(root, '#E7EBEF');
+    const h = TX(root, 'Most websites|just {sit there.}', 'h', { left: '60px', top: '220px', width: '980px', fontSize: '140px', color: '#0D0E12' });
+    const ph = phone(root, 420); css(ph.scr, { background: '#fff' }); ph.scr.innerHTML = `<div style="margin:120px 30px 0;height:240px;border-radius:18px;background:#eceef2"></div><div style="margin:30px 30px 0;width:260px;height:26px;border-radius:8px;background:#dfe2e7"></div><div style="margin:16px 30px 0;width:330px;height:18px;border-radius:8px;background:#eceef2"></div><div style="margin:12px 30px 0;width:280px;height:18px;border-radius:8px;background:#eceef2"></div><div style="display:flex;gap:14px;margin:34px 30px 0"><div style="flex:1;height:160px;border-radius:14px;background:#eceef2"></div><div style="flex:1;height:160px;border-radius:14px;background:#eceef2"></div></div>`;
+    const dots = [...Array(18)].map((_, k) => { const d = el('div', 'ab', root); css(d, { width: '30px', height: '30px', borderRadius: '50%', background: '#2A2BFF' }); return d; });
+    const c1 = TX(root, 'Visitors come.', 'h2', { left: '60px', top: '1680px', fontSize: '64px', color: '#0D0E12' });
+    const c2 = TX(root, 'Visitors {leave.}', 'h2', { left: '560px', top: '1680px', fontSize: '64px', color: '#0D0E12' });
+    const px = (W - ph.W) / 2, py = 720;
+    return t => { rise(h, t, 0, { st: .08 }); tf(ph.root, { x: px, y: lerp(H, py, E(t, 0, .6)) });
+      dots.forEach((d, k) => { const s0 = .5 + k * .11, q = pr(t, s0, s0 + 1.1); const side = k % 2 ? 1 : -1;
+        const x = q < .5 ? lerp(540 + side * 700, 540, oC(q * 2)) : lerp(540, 540 - side * 700, iC((q - .5) * 2)); const y = 1150 + Math.sin(k * 7) * 260 + (q < .5 ? 0 : -(q - .5) * 400);
+        tf(d, { x: x - 15, y, o: q > 0 && q < 1 ? 1 : 0, s: q < .5 ? 1 : 1 - (q - .5) }); });
+      rise(c1, t, .9); rise(c2, t, 1.5); };
+  });
+  cues.push([3.3, 'swoosh', .2], [4.3, 'swoosh', .2]);
+  // 3 · What if it… (word slot ticker accelerating into the drop)
+  scene(5.5, 9.5, root => {
+    bg(root, '#0D0E12');
+    const a = TX(root, 'What if it', 'h', { left: '60px', top: '640px', fontSize: '150px', color: '#fff' });
+    const WORDS = ['sold the product.', 'booked the call.', 'filled the waitlist.', 'grew your list.', 'showed up on Google.', 'worked while you slept?'];
+    const slot = el('div', 'ab', root); css(slot, { left: '60px', top: '820px', width: '1000px', height: '400px', overflow: 'hidden' });
+    const ws = WORDS.map(w => { const e = el('div', 'ab h', slot, w.replace(/ (\S+)$/, ' <span style="color:#2A2BFF">$1</span>')); css(e, { fontSize: '120px', color: '#fff', width: '1000px', lineHeight: '1.05' }); return e; });
+    const times = [.55, 1.25, 1.85, 2.4, 2.9, 3.35];
+    return t => { rise(a, t, 0, { st: .08 });
+      let k = -1; times.forEach((s, j) => { if (t >= s) k = j; });
+      ws.forEach((e, j) => { let y = 400; if (j === k) y = lerp(260, 0, E(t, times[j], times[j] + .25)); else if (j === k - 1) y = lerp(0, -300, E(t, times[k], times[k] + .25)); else if (j < k - 1) y = -400; tf(e, { y }); });
+      root.style.transform = `scale(${1 + E(t, 3.4, 4.0, iC) * .25})`; };
+  });
+  [6.05, 6.75, 7.35, 7.9, 8.4, 8.85].forEach(t => cues.push([t, 'click2', .4]));
+  // 4 · drop: It can.
+  scene(9.5, 11.0, root => {
+    bg(root, '#2A2BFF'); mark(root, '#fff');
+    const h = TX(root, 'It can.', 'h', { left: '60px', top: '700px', fontSize: '300px', color: '#fff' });
+    const s = TX(root, 'Websites designed and built around {one job.}', 'h2', { left: '60px', top: '1080px', width: '900px', fontSize: '66px', color: '#ffffffcc' }, '#fff');
+    return t => { slam(h, t, 0, { st: .18, d: .35 }); rise(s, t, .5, { st: .04 }); tf(h, { s: 1 + t * .02 }); };
+  });
+  cues.push([9.5, 'impact', .6]);
+  // 5 · tour: each site answers a "what if"
+  const TOUR = [
+    ['moodring', 'What if your launch had a {waitlist} before it shipped?'],
+    ['bibire', 'What if a brand-new label felt {established?}'],
+    ['meji', 'What if an appetite turned straight into a {basket?}'],
+    ['throne', 'What if a house of prayer could welcome {every nation?}'],
+    ['crib', 'What if renters felt {safe} before they ever viewed?'],
+    ['moms', 'What if one product had {one clear action?}'],
+    ['expertlinc', 'What if a new idea felt {worth joining?}'],
+    ['wigpa', 'What if a global community had {a home?}'],
+  ];
+  const DUR = [2.15, 2.05, 2.0, 2.2, 2.0, 1.75, 1.75, 1.75]; let t0 = 11.0;
+  TOUR.forEach(([key, q], k) => { const a = t0, b = t0 + DUR[k]; t0 = b;
+    scene(a, b, root => { const S = SITES[key]; bg(root, S.bg); mark(root, S.fg);
+      const band = el('div', 'ab', root); css(band, { width: W + 'px', height: '720px', background: S.fg, top: '0px' });
+      const qq = TX(root, q, 'h', { left: '60px', top: '190px', width: '960px', fontSize: '96px', color: S.bg }, S.qacc || (S.acc === '#FFFFFF' ? '#2A2BFF' : S.acc));
+      const nm = TX(root, `${S.name}  ·  ${S.url}`, 'lbl', { left: '64px', top: '600px', color: S.bg, opacity: .75, textTransform: 'none', letterSpacing: '.04em', fontSize: '28px' });
+      // desktop browser with a full-page scroll, phone overlapping
+      const br = browser(root, 900, 640, S.url); let full = null; const dph = { scr: br.vp, h: 586, imgs: [] };
+      if (S.dseq) dph.imgs = S.dseq.map(i => { const im = el('img', null, br.vp); im.src = A(key) + 'd_' + pad(i) + '.jpg'; return im; });
+      else { full = el('img', null, br.vp); full.src = A(key) + 'd_full.jpg'; css(full, { width: '100%' }); }
+      const ph = phone(root, 330); shots(ph, S.m.slice(0, 3).map(i => msrc(key, i)));
+      const LAY = k % 2;
+      return t => { const p = E(t, 0, .5, ioC);
+        if (k % 3 === 0) wipe.up(root, p); else if (k % 3 === 1) wipe.left(root, p); else wipe.circle(root, p, 540, 360);
+        rise(qq, t, .12, { st: .045, d: .5 }); rise(nm, t, .45, { st: .02 });
+        tf(br.root, { x: LAY ? 120 : 60, y: lerp(1300, 900, E(t, .1, .7)), rx: 8, ry: LAY ? 10 : -10, o: E(t, .1, .4) });
+        if (full) scrollImg(full, E(t, .6, DUR[k], ioC) * 1400 * (900 / 1440)); else seq(dph, t, [0, .55, 1.05, 1.55], { d: .35 });
+        tf(ph.root, { x: LAY ? 60 : 690, y: lerp(1900, 1020, E(t, .25, .85, p => oB(p, 1.1))), r: LAY ? -4 : 4 });
+        seq(ph, t, [0, .9, 1.45]); }; }); cues.push([a, k % 2 ? 'swoosh' : 'whoosh2', .3]); });
+  // 6 · found on Google, quoted by AI
+  scene(27.45, 31.4, root => { const u = findScene(root, 3.95, 'What if they found you|{on Google and in AI?}'); return t => { wipe.circle(root, E(t, 0, .5, ioC)); u(t); }; });
+  cues.push([27.9, 'typing', .22, .8], [28.8, 'pop', .3], [29.55, 'typing', .15, 1.3], [30.45, 'ding', .3], [30.65, 'pop2', .25], [30.77, 'pop2', .25], [30.89, 'pop2', .25]);
+  // 7 · email list
+  scene(31.4, 35.8, root => { const u = listScene(root, 4.4, 'What if every visitor|{joined your list?}', '…and got a welcome|email {automatically?}'); return t => { wipe.diag(root, E(t, 0, .5, ioC)); u(t); }; });
+  cues.push([32.1, 'click2', .5], [32.25, 'typing', .2, .7], [32.95, 'click', .5], [33.15, 'ding', .35], [33.9, 'notif', .5], [34.4, 'swoosh', .3]);
+  // 8 · gift
+  scene(35.8, 37.95, root => giftScene(root, 2.15, 'What if it came|with a {free gift?}', 'It does. Ask on the call.'));
+  cues.push([35.95, 'pop2', .35], [36.7, 'sparkle', .45]);
+  // 9 · CTA
+  scene(37.95, 42.6, root => { const u = ctaScene(root, 4.65, 'Stop wondering.|{Let’s build it.}'); return t => { wipe.up(root, E(t, 0, .5, ioC)); u(t); }; });
+  cues.push([37.95, 'whoosh', .35], [40.0, 'click', .55]);
+  return { duration: 42.6, music: { file: 'm623.mp3', offset: 5.985, gain: .85, fadeIn: .4, fadeOut: 1.8 }, cues };
+}
+
+window.STORY = STORYNAME === 'whatif' ? storyWhatIf() : storyOneJob();
+el('div', 'grain', stage);
+// Ready once fonts and every image have loaded
+window.READY = (async () => {
+  await document.fonts.ready;
+  await Promise.all([...document.images].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+  for (const f of ['800 100px "Bricolage Grotesque"', '600 100px "Bricolage Grotesque"', '600 40px "Instrument Sans"', '500 24px "JetBrains Mono"']) await document.fonts.load(f);
+  R(0); return true;
+})();
+</script></body></html>
